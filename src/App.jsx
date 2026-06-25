@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
-import Login from './pages/Login';
-import DentistDashboard from './pages/DentistDashboard';
-import PatientDashboard from './pages/PatientDashboard'; // Import the patient portal
+import React, { useState } from "react";
+import Login from "./pages/Login";
+import DentistDashboard from "./pages/DentistDashboard";
+import PatientDashboard from "./pages/PatientDashboard";
 
 function App() {
-  // Can be null (logged out), 'dentist', or 'patient'
   const [userRole, setUserRole] = useState(null);
 
   const handleLogin = (role) => {
@@ -15,12 +14,14 @@ function App() {
     setUserRole(null);
   };
 
-  return (
-    <div className="App">
-      {userRole === null && <Login onLogin={handleLogin} />}
-      {userRole === 'dentist' && <DentistDashboard onLogout={handleLogout} />}
-      {userRole === 'patient' && <PatientDashboard onLogout={handleLogout} />}
-    </div>
+  if (!userRole) {
+    return <Login onLogin={handleLogin} />;
+  }
+
+  return userRole === "dentist" ? (
+    <DentistDashboard onLogout={handleLogout} />
+  ) : (
+    <PatientDashboard onLogout={handleLogout} />
   );
 }
 
