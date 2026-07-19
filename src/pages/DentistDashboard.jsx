@@ -1,20 +1,19 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import jsPDF from "jspdf";
 import Sidebar from "../components/Sidebar";
+import Topbar from "../components/Topbar";
 import ToothChart from "../components/ToothChart";
 import ChatBox from "../components/ChatBox";
-import DentalPieChart from "../components/DentalPieChart";
 import StatCard from "../components/StatCard";
+import StatRow from "../components/StatRow";
+import AuditLog from "../components/AuditLog";
+import Dropdown from "../components/Dropdown";
 import doctorsData from "../data/doctorsData";
-import { STATUS } from "../data/toothMeta";
+import { getUnreadCount } from "../data/chatStore";
+import { STATUS, modeToStatus } from "../data/toothMeta";
 import {
-  IconCalendar,
-  IconFile,
-  IconMessage,
-  IconUsers,
-  IconLogout,
   IconDroplet,
   IconSave,
   IconDownload,
@@ -24,6 +23,21 @@ const RISK_STYLES = {
   Low: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   Medium: "bg-amber-50 text-amber-700 ring-amber-200",
   High: "bg-rose-50 text-rose-700 ring-rose-200",
+};
+
+const SECTION_LABELS = {
+  dashboard: "Overview Dashboard",
+  patients: "Patient Profiles",
+  appointments: "Appointments",
+  dentalChart: "Charting Center",
+  reports: "Reports",
+  chats: "Secure Chat",
+};
+
+const PATIENT_TAGS = {
+  "John Doe": "Routine check-up",
+  "Jane Smith": "Crown replacement follow-up",
+  "Alex Mercer": "Wisdom tooth extraction",
 };
 
 const Card = ({ className = "", children }) => (
@@ -36,10 +50,24 @@ const DentistDashboard = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [selectedPatient, setSelectedPatient] = useState("John Doe");
-  // Simulates which doctor account is currently logged in, since there's no
-  // real multi-account auth yet. This name must match what the patient picks
-  // in their "Chatting with" dropdown for a thread to line up.
   const [loggedInDoctor, setLoggedInDoctor] = useState(doctorsData[0].name);
+  const [auditLog, setAuditLog] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const allPatientNames = ["John Doe", "Jane Smith", "Alex Mercer"];
+
+  useEffect(() => {
+    const recalc = () => {
+      const total = allPatientNames.reduce(
+        (sum, p) => sum + getUnreadCount(loggedInDoctor, p, "Dentist"),
+        0
+      );
+      setUnreadCount(total);
+    };
+    recalc();
+    window.addEventListener("storage", recalc);
+    return () => window.removeEventListener("storage", recalc);
+  }, [loggedInDoctor, activeTab]);
 
   const createDefaultChart = () => {
     return Array.from({ length: 32 }).reduce((acc, _, i) => {
@@ -86,10 +114,19 @@ const DentistDashboard = () => {
 
   const handleToothClick = (toothNum) => {
     setSelectedTooth(toothNum);
-    setCurrentTeethStates((prev) => ({
+    const newStatus = modeToStatus(selectedMode);
+
+    setCurrentTeethStates((prev) => ({ ...prev, [toothNum]: newStatus }));
+
+    setAuditLog((prev) => [
       ...prev,
-      [toothNum]: selectedMode === "healthy" ? 0 : selectedMode === "cavity" ? 1 : 2,
-    }));
+      {
+        tooth: toothNum,
+        label: STATUS[newStatus].label,
+        color: STATUS[newStatus].border,
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+      },
+    ]);
   };
 
   const handleBleedingChange = (value) => {
@@ -97,8 +134,7 @@ const DentistDashboard = () => {
     setBleedingMap((prev) => ({ ...prev, [selectedTooth]: value }));
   };
 
-  const handlePatientChange = (e) => {
-    const next = e.target.value;
+  const handlePatientChange = (next) => {
     setSelectedPatient(next);
     setCurrentTeethStates(patientDatabase[next]?.teeth || createDefaultChart());
     setBleedingMap(patientDatabase[next]?.bleeding || {});
@@ -108,6 +144,7 @@ const DentistDashboard = () => {
   const healthyCount = Object.values(currentTeethStates).filter((s) => s === 0).length;
   const cavityCount = Object.values(currentTeethStates).filter((s) => s === 1).length;
   const filledCount = Object.values(currentTeethStates).filter((s) => s === 2).length;
+  const missingCount = Object.values(currentTeethStates).filter((s) => s === 3).length;
   const totalBleeding = Object.values(bleedingMap).reduce((a, b) => a + b, 0);
 
   let risk = "Low";
@@ -180,262 +217,279 @@ const DentistDashboard = () => {
         navigate={navigate}
       />
 
-      <main className="flex-1 space-y-6 p-6">
-        {/* Header */}
-        <div className="flex flex-col justify-between gap-4 rounded-2xl bg-gradient-to-r from-cyan-600 to-teal-500 p-6 text-white sm:flex-row sm:items-center">
-          <div>
-            <h1 className="text-2xl font-bold">Dentist Dashboard</h1>
-            <p className="mt-1 text-sm text-white/80">Review charts, log findings, and generate reports</p>
-          </div>
-          <span className="w-fit rounded-full bg-white/15 px-3 py-1 text-xs font-semibold ring-1 ring-white/30">
-            {profile.appointment}
-          </span>
-        </div>
+      <div className="flex min-h-screen flex-1 flex-col">
+        <Topbar
+          section={SECTION_LABELS[activeTab] || "Dashboard"}
+          role="Dentist"
+          userName={loggedInDoctor}
+          notifications={unreadCount}
+        />
 
-        {/* Patient + doctor identity selector row */}
-        <Card className="flex flex-wrap items-center justify-between gap-3 !p-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <span className="font-medium text-slate-500">Patient</span>
-              <select
+        <main className="flex-1 space-y-6 p-6">
+          {/* Patient + doctor identity selector row */}
+          <Card className="flex flex-wrap items-center justify-between gap-4 !p-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <Dropdown
+                label="Patient"
                 value={selectedPatient}
                 onChange={handlePatientChange}
-                className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500"
-              >
-                <option>John Doe</option>
-                <option>Jane Smith</option>
-                <option>Alex Mercer</option>
-              </select>
-            </label>
+                colorClass="bg-gradient-to-br from-brand-500 to-brand-700"
+                options={allPatients.map((name) => ({
+                  value: name,
+                  label: name,
+                  initials: name.split(" ").map((w) => w[0]).join(""),
+                  sublabel: patientProfiles[name].appointment,
+                }))}
+              />
 
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <span className="font-medium text-slate-500">Logged in as</span>
-              <select
+              <Dropdown
+                label="Logged in as"
                 value={loggedInDoctor}
-                onChange={(e) => setLoggedInDoctor(e.target.value)}
-                className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500"
-              >
-                {doctorsData.map((doc) => (
-                  <option key={doc.name} value={doc.name}>{doc.name}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <button
-            onClick={() => navigate("/")}
-            className="flex items-center gap-2 rounded-lg bg-rose-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-600"
-          >
-            <IconLogout className="h-4 w-4" /> Logout
-          </button>
-        </Card>
-
-        {activeTab === "dashboard" && (
-          <>
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-              <StatCard icon={IconCalendar} label="Today's Appointments" value={4} tone="teal" />
-              <StatCard icon={IconFile} label="Pending Reports" value={2} tone="amber" />
-              <StatCard icon={IconMessage} label="New Messages" value={3} tone="sky" />
-              <StatCard icon={IconUsers} label="Patients This Week" value={18} tone="emerald" />
+                onChange={setLoggedInDoctor}
+                colorClass="bg-slate-700"
+                options={doctorsData.map((doc) => ({
+                  value: doc.name,
+                  label: doc.name,
+                  initials: doc.name.replace(/^Dr\.?\s*/i, "").split(" ").map((w) => w[0]).join(""),
+                  sublabel: doc.specialization,
+                }))}
+              />
             </div>
 
-            <Card>
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <h2 className="font-bold text-slate-800">Patient Profile</h2>
-                  <dl className="mt-3 grid grid-cols-2 gap-x-8 gap-y-1.5 text-sm text-slate-600 sm:grid-cols-4">
-                    <div><dt className="text-xs text-slate-400">Age</dt><dd>{profile.age}</dd></div>
-                    <div><dt className="text-xs text-slate-400">Gender</dt><dd>{profile.gender}</dd></div>
-                    <div><dt className="text-xs text-slate-400">Blood</dt><dd>{profile.bloodGroup}</dd></div>
-                    <div><dt className="text-xs text-slate-400">Phone</dt><dd>{profile.phone}</dd></div>
-                  </dl>
-                  <p className="mt-3 text-sm font-medium text-teal-700">Next visit: {profile.appointment}</p>
+            <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 ring-1 ring-brand-100">
+              Next visit: {profile.appointment}
+            </span>
+          </Card>
+
+          {activeTab === "dashboard" && (
+            <>
+              <StatRow
+                items={[
+                  { label: "Total Patients", value: allPatients.length },
+                  { label: "Charts Updated", value: auditLog.length },
+                  { label: "Appointments Today", value: 4 },
+                  { label: "Pending Follow-ups", value: 2 },
+                ]}
+              />
+
+              <Card>
+                <h2 className="mb-4 flex items-center justify-between font-bold text-slate-800">
+                  Patient Directory
+                  <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">
+                    {allPatients.length} Patients
+                  </span>
+                </h2>
+                <p className="-mt-3 mb-4 text-sm text-slate-500">Select a patient to begin clinical charting</p>
+
+                <div className="space-y-3">
+                  {allPatients.map((name) => {
+                    const p = patientProfiles[name];
+                    const initials = name.split(" ").map((w) => w[0]).join("");
+                    return (
+                      <button
+                        key={name}
+                        onClick={() => {
+                          setSelectedPatient(name);
+                          setCurrentTeethStates(patientDatabase[name]?.teeth || createDefaultChart());
+                          setBleedingMap(patientDatabase[name]?.bleeding || {});
+                          setSelectedTooth(null);
+                          setActiveTab("dentalChart");
+                        }}
+                        className="flex w-full items-center justify-between gap-4 rounded-xl border border-slate-100 p-4 text-left transition-colors hover:bg-slate-50"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-bold text-white">
+                            {initials}
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-800">{name}</p>
+                            <p className="text-xs text-slate-400">
+                              Age: {p.age} · Last visit: {p.appointment.split(" - ")[0]}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+                          {PATIENT_TAGS[name]}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <span className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${RISK_STYLES[risk]}`}>
-                  {risk} risk
-                </span>
+              </Card>
+
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <StatCard label="Healthy" value={healthyCount} tone="emerald" />
+                <StatCard label="Cavities" value={cavityCount} tone="rose" />
+                <StatCard label="Filled" value={filledCount} tone="sky" />
+                <StatCard label="Missing" value={missingCount} tone="slate" />
               </div>
-            </Card>
+            </>
+          )}
 
-            <div className="grid grid-cols-3 gap-4">
-              <StatCard label="Healthy" value={healthyCount} tone="emerald" />
-              <StatCard label="Cavities" value={cavityCount} tone="rose" />
-              <StatCard label="Filled" value={filledCount} tone="sky" />
-            </div>
-          </>
-        )}
-
-        {activeTab === "patients" && (
-          <Card>
-            <h2 className="mb-4 font-bold text-slate-800">All Patients</h2>
-            <div className="divide-y divide-slate-100">
-              {allPatients.map((name) => {
-                const p = patientProfiles[name];
-                return (
-                  <button
-                    key={name}
-                    onClick={() => {
-                      setSelectedPatient(name);
-                      setCurrentTeethStates(patientDatabase[name]?.teeth || createDefaultChart());
-                      setBleedingMap(patientDatabase[name]?.bleeding || {});
-                      setSelectedTooth(null);
-                      setActiveTab("dentalChart");
-                    }}
-                    className="flex w-full items-center justify-between gap-4 py-3 text-left transition-colors hover:bg-slate-50"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">{name}</p>
-                      <p className="text-xs text-slate-400">
-                        {p.age} yrs · {p.gender} · {p.bloodGroup}
-                      </p>
-                    </div>
-                    <span className="text-xs font-medium text-teal-700">{p.appointment}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </Card>
-        )}
-
-        {activeTab === "appointments" && (
-          <Card>
-            <h2 className="mb-4 font-bold text-slate-800">Upcoming Appointments</h2>
-            <div className="divide-y divide-slate-100">
-              {allPatients.map((name) => {
-                const p = patientProfiles[name];
-                return (
-                  <div key={name} className="flex items-center justify-between gap-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-50 text-teal-600">
-                        <IconCalendar className="h-4 w-4" />
-                      </div>
-                      <p className="text-sm font-semibold text-slate-800">{name}</p>
-                    </div>
-                    <span className="text-xs font-medium text-slate-500">{p.appointment}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-        )}
-
-        {activeTab === "chats" && (
-          <ChatBox doctorName={loggedInDoctor} patientName={selectedPatient} role="Dentist" />
-        )}
-
-        {activeTab === "dentalChart" && (
-          <div className="space-y-6">
-            <Card className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-bold text-slate-800">Dental Chart — {selectedPatient}</h2>
-                <p className="text-sm text-slate-500">Click a tooth, then pick a condition to log it</p>
-              </div>
-
-              {/* Segmented mode control */}
-              <div className="flex rounded-xl bg-slate-100 p-1">
-                {[0, 1, 2].map((s) => {
-                  const key = s === 0 ? "healthy" : s === 1 ? "cavity" : "filled";
-                  const active = selectedMode === key;
+          {activeTab === "patients" && (
+            <Card>
+              <h2 className="mb-4 font-bold text-slate-800">All Patients</h2>
+              <div className="divide-y divide-slate-100">
+                {allPatients.map((name) => {
+                  const p = patientProfiles[name];
                   return (
                     <button
-                      key={key}
-                      onClick={() => setSelectedMode(key)}
-                      className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                        active ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                      }`}
+                      key={name}
+                      onClick={() => {
+                        setSelectedPatient(name);
+                        setCurrentTeethStates(patientDatabase[name]?.teeth || createDefaultChart());
+                        setBleedingMap(patientDatabase[name]?.bleeding || {});
+                        setSelectedTooth(null);
+                        setActiveTab("dentalChart");
+                      }}
+                      className="flex w-full items-center justify-between gap-4 py-3 text-left transition-colors hover:bg-slate-50"
                     >
-                      <span
-                        className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle"
-                        style={{ background: STATUS[s].fill }}
-                      />
-                      {STATUS[s].label}
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">{name}</p>
+                        <p className="text-xs text-slate-400">
+                          {p.age} yrs · {p.gender} · {p.bloodGroup}
+                        </p>
+                      </div>
+                      <span className="text-xs font-medium text-brand-700">{p.appointment}</span>
                     </button>
                   );
                 })}
               </div>
             </Card>
+          )}
 
-            <div className="grid gap-6 lg:grid-cols-3">
-              <Card className="lg:col-span-2">
-                <ToothChart
-                  teethStates={currentTeethStates}
-                  onToothClick={handleToothClick}
-                  selectedTooth={selectedTooth}
-                  bleedingMap={bleedingMap}
-                />
+          {activeTab === "appointments" && (
+            <Card>
+              <h2 className="mb-4 font-bold text-slate-800">Upcoming Appointments</h2>
+              <div className="divide-y divide-slate-100">
+                {allPatients.map((name) => {
+                  const p = patientProfiles[name];
+                  return (
+                    <div key={name} className="flex items-center justify-between gap-4 py-3">
+                      <p className="text-sm font-semibold text-slate-800">{name}</p>
+                      <span className="text-xs font-medium text-slate-500">{p.appointment}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+
+          {activeTab === "chats" && (
+            <ChatBox doctorName={loggedInDoctor} patientName={selectedPatient} role="Dentist" />
+          )}
+
+          {activeTab === "dentalChart" && (
+            <div className="space-y-6">
+              <Card className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-800">Dental Chart — {selectedPatient}</h2>
+                  <p className="text-sm text-slate-500">Click a tooth, then pick a condition to log it</p>
+                </div>
+
+                <div className="flex flex-wrap rounded-xl bg-slate-100 p-1">
+                  {[0, 1, 2, 3].map((s) => {
+                    const key = s === 0 ? "healthy" : s === 1 ? "cavity" : s === 2 ? "filled" : "missing";
+                    const active = selectedMode === key;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => setSelectedMode(key)}
+                        className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                          active ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        <span
+                          className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle"
+                          style={{ background: STATUS[s].fill }}
+                        />
+                        {STATUS[s].label}
+                      </button>
+                    );
+                  })}
+                </div>
               </Card>
 
-              <div className="space-y-6">
-                <Card>
-                  <h3 className="mb-3 flex items-center gap-2 font-bold text-slate-800">
-                    <IconDroplet className="h-4 w-4 text-rose-500" /> Bleeding on probing
-                  </h3>
-                  {selectedTooth ? (
-                    <>
-                      <p className="mb-2 text-xs text-slate-400">Tooth {selectedTooth}</p>
-                      <select
-                        value={bleedingMap[selectedTooth] || 0}
-                        onChange={(e) => handleBleedingChange(Number(e.target.value))}
-                        className="w-full rounded-lg border border-slate-200 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                      >
-                        {[0, 1, 2, 3, 4, 5].map((v) => (
-                          <option key={v} value={v}>{v === 0 ? "0 — none" : v}</option>
-                        ))}
-                      </select>
-                    </>
-                  ) : (
-                    <p className="text-sm text-slate-400">Select a tooth to log bleeding</p>
-                  )}
+              <div className="grid gap-6 lg:grid-cols-3">
+                <Card className="lg:col-span-2">
+                  <ToothChart
+                    teethStates={currentTeethStates}
+                    onToothClick={handleToothClick}
+                    selectedTooth={selectedTooth}
+                    bleedingMap={bleedingMap}
+                  />
                 </Card>
 
-                <Card>
-                  <DentalPieChart healthy={healthyCount} cavity={cavityCount} filled={filledCount} />
-                </Card>
+                <div className="space-y-6">
+                  <AuditLog entries={auditLog} />
 
-                <div className="flex flex-col gap-3">
-                  <button
-                    onClick={handleSaveChanges}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
-                  >
-                    <IconSave className="h-4 w-4" /> Save Changes
-                  </button>
-                  <button
-                    onClick={generateReport}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
-                  >
-                    <IconDownload className="h-4 w-4" /> Download Report
-                  </button>
+                  <Card>
+                    <h3 className="mb-3 flex items-center gap-2 font-bold text-slate-800">
+                      <IconDroplet className="h-4 w-4 text-rose-500" /> Bleeding on probing
+                    </h3>
+                    {selectedTooth ? (
+                      <>
+                        <p className="mb-2 text-xs text-slate-400">Tooth {selectedTooth}</p>
+                        <select
+                          value={bleedingMap[selectedTooth] || 0}
+                          onChange={(e) => handleBleedingChange(Number(e.target.value))}
+                          className="w-full rounded-lg border border-slate-200 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        >
+                          {[0, 1, 2, 3, 4, 5].map((v) => (
+                            <option key={v} value={v}>{v === 0 ? "0 — none" : v}</option>
+                          ))}
+                        </select>
+                      </>
+                    ) : (
+                      <p className="text-sm text-slate-400">Select a tooth to log bleeding</p>
+                    )}
+                  </Card>
+
+                  <div className="flex flex-col gap-3">
+                    <button
+                      onClick={handleSaveChanges}
+                      className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+                    >
+                      <IconSave className="h-4 w-4" /> Save Changes
+                    </button>
+                    <button
+                      onClick={generateReport}
+                      className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                    >
+                      <IconDownload className="h-4 w-4" /> Download Report
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {activeTab === "reports" && (
-          <Card>
-            <div className="flex items-center justify-between">
-              <h2 className="font-bold text-slate-800">Clinical Report</h2>
-              <span className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${RISK_STYLES[risk]}`}>
-                {risk} risk
-              </span>
-            </div>
-            <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <div><dt className="text-xs text-slate-400">Healthy</dt><dd className="text-lg font-bold text-slate-800">{healthyCount}</dd></div>
-              <div><dt className="text-xs text-slate-400">Cavities</dt><dd className="text-lg font-bold text-slate-800">{cavityCount}</dd></div>
-              <div><dt className="text-xs text-slate-400">Filled</dt><dd className="text-lg font-bold text-slate-800">{filledCount}</dd></div>
-              <div><dt className="text-xs text-slate-400">Bleeding score</dt><dd className="text-lg font-bold text-slate-800">{totalBleeding}</dd></div>
-            </dl>
-            <p className="mt-4 text-sm text-slate-500">Appointment: <span className="font-medium text-slate-700">{profile.appointment}</span></p>
+          {activeTab === "reports" && (
+            <Card>
+              <div className="flex items-center justify-between">
+                <h2 className="font-bold text-slate-800">Clinical Report</h2>
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${RISK_STYLES[risk]}`}>
+                  {risk} risk
+                </span>
+              </div>
+              <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <div><dt className="text-xs text-slate-400">Healthy</dt><dd className="text-lg font-bold text-slate-800">{healthyCount}</dd></div>
+                <div><dt className="text-xs text-slate-400">Cavities</dt><dd className="text-lg font-bold text-slate-800">{cavityCount}</dd></div>
+                <div><dt className="text-xs text-slate-400">Filled</dt><dd className="text-lg font-bold text-slate-800">{filledCount}</dd></div>
+                <div><dt className="text-xs text-slate-400">Bleeding score</dt><dd className="text-lg font-bold text-slate-800">{totalBleeding}</dd></div>
+              </dl>
+              <p className="mt-4 text-sm text-slate-500">Appointment: <span className="font-medium text-slate-700">{profile.appointment}</span></p>
 
-            <button
-              onClick={generateReport}
-              className="mt-5 flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
-            >
-              <IconDownload className="h-4 w-4" /> Download PDF Report
-            </button>
-          </Card>
-        )}
-      </main>
+              <button
+                onClick={generateReport}
+                className="mt-5 flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+              >
+                <IconDownload className="h-4 w-4" /> Download PDF Report
+              </button>
+            </Card>
+          )}
+        </main>
+      </div>
     </div>
   );
 };

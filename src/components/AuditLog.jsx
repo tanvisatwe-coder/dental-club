@@ -1,21 +1,39 @@
-function AuditLog({ logs }) {
+import React from "react";
+
+/**
+ * AuditLog
+ * props:
+ *  - entries: array of { tooth, label, color, time }, newest first is fine —
+ *    this component reverses so the most recent shows on top regardless of
+ *    how it's pushed.
+ */
+const AuditLog = ({ entries = [] }) => {
+  const ordered = [...entries].reverse();
+
   return (
-    <div>
+    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      <h3 className="mb-3 font-bold text-slate-800">Recent Activity</h3>
 
-      <h2 className="text-cyan-300 font-bold mb-2">Activity Log</h2>
-
-      {logs.length === 0 ? (
-        <p className="text-white/50">No activity yet</p>
+      {ordered.length === 0 ? (
+        <p className="text-sm text-slate-400">No changes recorded yet this session</p>
       ) : (
-        logs.map((l, i) => (
-          <p key={i} className="text-white/70 text-sm">
-            Tooth {l.toothId} → {l.status} at {l.time}
-          </p>
-        ))
+        <ul className="max-h-64 space-y-3 overflow-y-auto pr-1">
+          {ordered.map((entry, i) => (
+            <li key={i} className="border-l-2 pl-3" style={{ borderColor: entry.color }}>
+              <p className="text-sm font-medium text-slate-700">
+                Tooth #{entry.tooth} <span className="text-slate-400">—</span> {entry.label}
+              </p>
+              <p className="text-xs text-slate-400">{entry.time}</p>
+            </li>
+          ))}
+        </ul>
       )}
 
+      <p className="mt-4 border-t border-slate-100 pt-3 text-xs font-medium text-slate-400">
+        {entries.length} change{entries.length !== 1 ? "s" : ""} recorded
+      </p>
     </div>
   );
-}
+};
 
 export default AuditLog;

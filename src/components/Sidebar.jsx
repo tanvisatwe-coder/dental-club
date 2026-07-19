@@ -6,188 +6,84 @@ import {
   FaCalendarAlt,
   FaUser,
   FaSignOutAlt,
-  FaTooth
+  FaTooth,
+  FaCog,
+  FaQuestionCircle,
 } from "react-icons/fa";
 
+const patientMenu = [
+  { name: "overview", label: "Overview", icon: <FaHome /> },
+  { name: "messages", label: "Secure Chat", icon: <FaComments /> },
+  { name: "report", label: "Reports", icon: <FaFileMedical /> },
+];
 
-const Sidebar = ({
-  activeTab,
-  setActiveTab,
-  role = "Patient",
-  navigate
-}) => {
+const dentistMenu = [
+  { name: "dashboard", label: "Overview Dashboard", icon: <FaHome /> },
+  { name: "patients", label: "Patient Profiles", icon: <FaUser /> },
+  { name: "appointments", label: "Appointments", icon: <FaCalendarAlt /> },
+  { name: "dentalChart", label: "Charting Center", icon: <FaTooth /> },
+  { name: "reports", label: "Reports", icon: <FaFileMedical /> },
+  { name: "chats", label: "Secure Chat", icon: <FaComments /> },
+];
 
-
-  const patientMenu = [
-    {
-      name: "overview",
-      label: "Overview",
-      icon: <FaHome />
-    },
-    {
-      name: "messages",
-      label: "Messages",
-      icon: <FaComments />
-    },
-    {
-      name: "report",
-      label: "Reports",
-      icon: <FaFileMedical />
-    }
-  ];
-
-
-  const dentistMenu = [
-    {
-      name: "dashboard",
-      label: "Dashboard",
-      icon: <FaHome />
-    },
-    {
-      name: "patients",
-      label: "Patients",
-      icon: <FaUser />
-    },
-    {
-      name: "appointments",
-      label: "Appointments",
-      icon: <FaCalendarAlt />
-    },
-    {
-      name: "dentalChart",
-      label: "Dental Chart",
-      icon: <FaTooth />
-    },
-    {
-      name: "reports",
-      label: "Reports",
-      icon: <FaFileMedical />
-    },
-    {
-      name: "chats",
-      label: "Messages",
-      icon: <FaComments />
-    }
-  ];
-
-
-  const menu =
-    role === "Dentist"
-      ? dentistMenu
-      : patientMenu;
-
-
+const Sidebar = ({ activeTab, setActiveTab, role = "Patient", navigate }) => {
+  const menu = role === "Dentist" ? dentistMenu : patientMenu;
 
   return (
-
-    <aside className="
-      w-64 
-      min-h-screen
-      bg-gradient-to-b 
-      from-teal-700 
-      to-cyan-700
-      text-white
-      p-5
-      flex
-      flex-col
-    ">
-
-
+    <aside className="flex min-h-screen w-64 flex-col border-r border-slate-100 bg-white p-5">
       {/* LOGO */}
-
-      <div className="flex items-center gap-2 mb-8">
-
-        <FaTooth className="text-3xl"/>
-
-        <h1 className="text-xl font-bold">
-          Dental Club
-        </h1>
-
+      <div className="mb-6 flex items-center gap-2.5 px-1">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm">
+          <FaTooth />
+        </div>
+        <div>
+          <h1 className="text-[15px] font-bold leading-tight text-slate-800">DentalClub</h1>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            {role === "Dentist" ? "Clinical portal" : "Patient portal"}
+          </p>
+        </div>
       </div>
 
+      <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+        Navigation
+      </p>
 
-
-      {/* MENU */}
-
-      <nav className="flex-1 space-y-2">
-
-
-        {menu.map((item)=>(
-
-          <button
-            key={item.name}
-            onClick={() =>
-              setActiveTab(item.name)
-            }
-            className={`
-              flex
-              items-center
-              gap-3
-              w-full
-              p-3
-              rounded-lg
-              transition
-
-              ${
-                activeTab === item.name
-                ?
-                "bg-white/25"
-                :
-                "hover:bg-white/10"
-              }
-
-            `}
-          >
-
-            {item.icon}
-
-            <span>
+      <nav className="flex-1 space-y-1">
+        {menu.map((item) => {
+          const active = activeTab === item.name;
+          return (
+            <button
+              key={item.name}
+              onClick={() => setActiveTab(item.name)}
+              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors ${
+                active
+                  ? "bg-brand-600 text-white shadow-sm"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+              }`}
+            >
+              <span className="text-[15px]">{item.icon}</span>
               {item.label}
-            </span>
-
-
-          </button>
-
-
-        ))}
-
-
+            </button>
+          );
+        })}
       </nav>
 
-
-
-
-      {/* LOGOUT */}
-
-      <button
-
-        onClick={() => navigate("/")}
-
-        className="
-          flex
-          items-center
-          gap-3
-          bg-red-500
-          hover:bg-red-600
-          p-3
-          rounded-lg
-        "
-
-      >
-
-        <FaSignOutAlt/>
-
-        Logout
-
-
-      </button>
-
-
-
+      <div className="space-y-1 border-t border-slate-100 pt-4">
+        <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50">
+          <FaCog className="text-[15px]" /> Settings
+        </button>
+        <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50">
+          <FaQuestionCircle className="text-[15px]" /> Help Center
+        </button>
+        <button
+          onClick={() => navigate("/")}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-rose-500 transition-colors hover:bg-rose-50"
+        >
+          <FaSignOutAlt className="text-[15px]" /> Logout
+        </button>
+      </div>
     </aside>
-
   );
 };
-
 
 export default Sidebar;

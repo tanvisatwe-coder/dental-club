@@ -91,3 +91,17 @@ export const IconSave = ({ className = "w-5 h-5" }) => (
     <path d="M8 4v5h8V4M8 14h8v6H8z" />
   </svg>
 );
+
+export const IconSearch = ({ className = "w-5 h-5" }) => (
+  <svg viewBox="0 0 24 24" className={className} {...base}>
+    <circle cx="11" cy="11" r="6.5" />
+    <path d="M20 20l-4.3-4.3" />
+  </svg>
+);
+
+export const IconBell = ({ className = "w-5 h-5" }) => (
+  <svg viewBox="0 0 24 24" className={className} {...base}>
+    <path d="M6 9a6 6 0 1 1 12 0c0 4.5 1.5 6 1.5 6h-15S6 13.5 6 9Z" />
+    <path d="M10 19a2 2 0 0 0 4 0" />
+  </svg>
+);

@@ -1,25 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { IconMessage } from "./icons";
-
-const slug = (s) => s.replace(/\s+/g, "_").toLowerCase();
-
-// Each doctor+patient pair gets its own thread, so Patient A talking to
-// Dr. Mehta doesn't mix with Patient A talking to Dr. Verma.
-const storageKeyFor = (doctorName, patientName) =>
-  `dentalclub_chat_${slug(doctorName)}__${slug(patientName)}`;
-
-const loadMessages = (doctorName, patientName) => {
-  try {
-    const raw = localStorage.getItem(storageKeyFor(doctorName, patientName));
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-};
-
-const saveMessages = (doctorName, patientName, messages) => {
-  localStorage.setItem(storageKeyFor(doctorName, patientName), JSON.stringify(messages));
-};
+import {
+  storageKeyFor,
+  loadMessages,
+  saveMessages,
+  markThreadRead,
+} from "../data/chatStore";
 
 /**
  * ChatBox
@@ -33,21 +19,24 @@ const ChatBox = ({ doctorName = "Dr. Sarah Mehta", patientName = "John Doe", rol
   const [draft, setDraft] = useState("");
   const bottomRef = useRef(null);
 
-  // Reload when switching patient/doctor
+  // Reload + mark as read whenever we switch to a different thread
   useEffect(() => {
     setMessages(loadMessages(doctorName, patientName));
-  }, [doctorName, patientName]);
+    markThreadRead(doctorName, patientName, role);
+  }, [doctorName, patientName, role]);
 
-  // Live update when the OTHER tab (other role) sends a message
+  // Live update when the OTHER tab (other role) sends a message — and since
+  // this thread is open/visible right now, immediately mark it read too.
   useEffect(() => {
     const handleStorage = (e) => {
       if (e.key === storageKeyFor(doctorName, patientName)) {
         setMessages(loadMessages(doctorName, patientName));
+        markThreadRead(doctorName, patientName, role);
       }
     };
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
-  }, [doctorName, patientName]);
+  }, [doctorName, patientName, role]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -69,6 +58,7 @@ const ChatBox = ({ doctorName = "Dr. Sarah Mehta", patientName = "John Doe", rol
 
     setMessages(next);
     saveMessages(doctorName, patientName, next);
+    markThreadRead(doctorName, patientName, role); // my own message doesn't count as unread for me
     setDraft("");
   };
 
@@ -82,7 +72,7 @@ const ChatBox = ({ doctorName = "Dr. Sarah Mehta", patientName = "John Doe", rol
   return (
     <div className="flex h-[70vh] flex-col rounded-2xl border border-slate-100 bg-white shadow-sm">
       <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-4">
-        <IconMessage className="h-4 w-4 text-teal-600" />
+        <IconMessage className="h-4 w-4 text-brand-600" />
         <div>
           <h2 className="font-bold text-slate-800">
             {role === "Dentist" ? `Chat with ${patientName}` : `Chat with ${doctorName}`}
@@ -105,12 +95,12 @@ const ChatBox = ({ doctorName = "Dr. Sarah Mehta", patientName = "John Doe", rol
               <div
                 className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${
                   isMine
-                    ? "rounded-br-sm bg-teal-600 text-white"
+                    ? "rounded-br-sm bg-brand-600 text-white"
                     : "rounded-bl-sm bg-slate-100 text-slate-800"
                 }`}
               >
                 <p>{m.text}</p>
-                <p className={`mt-1 text-[10px] ${isMine ? "text-teal-100" : "text-slate-400"}`}>
+                <p className={`mt-1 text-[10px] ${isMine ? "text-brand-100" : "text-slate-400"}`}>
                   {m.sender} · {m.time}
                 </p>
               </div>
@@ -127,11 +117,11 @@ const ChatBox = ({ doctorName = "Dr. Sarah Mehta", patientName = "John Doe", rol
           onKeyDown={handleKeyDown}
           rows={1}
           placeholder="Type a message..."
-          className="max-h-28 flex-1 resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+          className="max-h-28 flex-1 resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         />
         <button
           onClick={handleSend}
-          className="rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-teal-700"
+          className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
         >
           Send
         </button>
