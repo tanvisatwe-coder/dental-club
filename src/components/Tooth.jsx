@@ -1,76 +1,74 @@
-import React from 'react';
+import React from "react";
+import { STATUS, BLEEDING } from "../data/toothMeta";
+
+const TOOTH_CLIP =
+  "polygon(18% 0%, 82% 0%, 100% 55%, 62% 100%, 50% 82%, 38% 100%, 0% 55%)";
 
 const Tooth = ({
   num,
-  status,
+  status = 0,
   bleedingLevel = 0,
   isSelected = false,
   onClick,
+  interactive = true,
+  arch = "upper", // "upper" | "lower" — flips the crown so it points the right way
 }) => {
-  let bgStyleClass =
-    "bg-emerald-500 hover:bg-emerald-600 border-emerald-600/10";
-
-  // Cavity
-  if (status === 1) {
-    bgStyleClass =
-      "bg-gradient-to-br from-pink-400 to-rose-500 border-rose-600/10";
-  }
-
-  // Filled
-  else if (status === 2) {
-    bgStyleClass =
-      "bg-gradient-to-br from-sky-400 to-blue-500 border-blue-600/10";
-  }
-
-  // Bleeding colors override
-  if (bleedingLevel === 1) {
-    bgStyleClass =
-      "bg-green-400 border-green-500";
-  }
-
-  if (bleedingLevel === 2) {
-    bgStyleClass =
-      "bg-lime-400 border-lime-500";
-  }
-
-  if (bleedingLevel === 3) {
-    bgStyleClass =
-      "bg-yellow-400 border-yellow-500 text-black";
-  }
-
-  if (bleedingLevel === 4) {
-    bgStyleClass =
-      "bg-orange-500 border-orange-600";
-  }
-
-  if (bleedingLevel === 5) {
-    bgStyleClass =
-      "bg-red-600 border-red-700";
-  }
+  const meta = STATUS[status] ?? STATUS[0];
+  const bleed = BLEEDING[bleedingLevel] ?? BLEEDING[0];
 
   return (
-    <div
-      onClick={onClick}
-      className={`
-        aspect-square
-        flex
-        items-center
-        justify-center
-        rounded-2xl
-        font-bold
-        text-lg
-        cursor-pointer
-        transition-all
-        duration-150
-        shadow-md
-        border-2
-        hover:scale-105
-        active:scale-95
-        ${bgStyleClass}
-        ${isSelected ? "ring-4 ring-purple-500 scale-110" : ""}
-      `}
-    >
-      {num}
+    <div className="group relative flex flex-col items-center">
+      {/* Tooltip */}
+      <div
+        className="pointer-events-none absolute -top-11 z-20 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100"
+        role="tooltip"
+      >
+        Tooth {num} · {meta.label}
+        {bleedingLevel > 0 && ` · Bleeding: ${bleed.label}`}
+        <div className="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-slate-900" />
+      </div>
+
+      <button
+        type="button"
+        onClick={interactive ? onClick : undefined}
+        aria-label={`Tooth ${num}, ${meta.label}${bleedingLevel ? `, bleeding ${bleed.label}` : ""}`}
+        aria-pressed={isSelected}
+        disabled={!interactive}
+        className={[
+          "relative flex h-11 w-9 shrink-0 items-center justify-center sm:h-12 sm:w-10",
+          "border transition-transform duration-150",
+          interactive ? "cursor-pointer hover:-translate-y-0.5 active:translate-y-0" : "cursor-default",
+          arch === "lower" ? "rotate-180" : "",
+        ].join(" ")}
+        style={{
+          clipPath: TOOTH_CLIP,
+          background: `linear-gradient(160deg, ${meta.fill}, ${meta.fillTo})`,
+          borderColor: meta.border,
+          boxShadow: isSelected ? `0 0 0 3px #0f766e, 0 4px 10px -2px rgba(15,23,42,0.35)` : "0 2px 4px -1px rgba(15,23,42,0.25)",
+        }}
+      >
+        <span
+          className={[
+            "text-[11px] font-bold text-white/95 drop-shadow-sm sm:text-xs",
+            arch === "lower" ? "rotate-180" : "",
+          ].join(" ")}
+        >
+          {num}
+        </span>
+      </button>
+
+      {bleedingLevel > 0 && (
+        <span
+          className={[
+            "absolute h-2.5 w-2.5 rounded-full ring-2 ring-white",
+            arch === "lower" ? "-bottom-0.5" : "-top-0.5",
+            "right-0",
+            bleedingLevel >= 5 ? "animate-pulse" : "",
+          ].join(" ")}
+          style={{ backgroundColor: bleed.color }}
+          title={`Bleeding: ${bleed.label}`}
+        />
+      )}
     </div>
   );
 };
