@@ -16,6 +16,7 @@ const VARIANT = {
 
 const Tooth = ({
   num,
+  displayNum = null,
   status = 0,
   bleedingLevel = 0,
   isSelected = false,
@@ -23,6 +24,7 @@ const Tooth = ({
   interactive = true,
   arch = "upper",
 }) => {
+  const shownNum = displayNum ?? num;
   const meta = STATUS[status] ?? STATUS[0];
   const variant = VARIANT[status] ?? VARIANT[0];
   const bleed = BLEEDING[bleedingLevel] ?? BLEEDING[0];
@@ -31,7 +33,7 @@ const Tooth = ({
   return (
     <div className="group relative flex flex-col items-center">
       <span className={`mb-1 text-[11px] font-semibold text-slate-400 ${arch === "lower" ? "order-2 mb-0 mt-1" : ""}`}>
-        {num}
+        {shownNum}
       </span>
 
       {/* Tooltip */}
@@ -39,7 +41,7 @@ const Tooth = ({
         className="pointer-events-none absolute -top-11 z-20 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100"
         role="tooltip"
       >
-        Tooth {num} · {meta.label}
+        Tooth {shownNum} · {meta.label}
         {!isMissing && bleedingLevel > 0 && ` · Bleeding: ${bleed.label}`}
         <div className="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-slate-900" />
       </div>
@@ -47,7 +49,7 @@ const Tooth = ({
       <button
         type="button"
         onClick={interactive ? onClick : undefined}
-        aria-label={`Tooth ${num}, ${meta.label}${!isMissing && bleedingLevel ? `, bleeding ${bleed.label}` : ""}`}
+        aria-label={`Tooth ${shownNum}, ${meta.label}${!isMissing && bleedingLevel ? `, bleeding ${bleed.label}` : ""}`}
         aria-pressed={isSelected}
         disabled={!interactive}
         className={[

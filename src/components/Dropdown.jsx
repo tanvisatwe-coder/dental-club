@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /**
- * Dropdown
+ * Dropdown (searchable combobox)
  * props:
  *  - label: small text shown to the left of the trigger (e.g. "Patient")
  *  - value: currently selected option's value
@@ -11,17 +11,36 @@ import React, { useEffect, useRef, useState } from "react";
  */
 const Dropdown = ({ label, value, options, onChange, colorClass = "bg-brand-600" }) => {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const ref = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     const handleClick = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+        setQuery("");
+      }
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  useEffect(() => {
+    if (open) inputRef.current?.focus();
+  }, [open]);
+
   const selected = options.find((o) => o.value === value);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter(
+      (o) =>
+        o.label.toLowerCase().includes(q) ||
+        (o.sublabel || "").toLowerCase().includes(q)
+    );
+  }, [options, query]);
 
   return (
     <div className="relative" ref={ref}>
@@ -55,47 +74,63 @@ const Dropdown = ({ label, value, options, onChange, colorClass = "bg-brand-600"
       </div>
 
       {open && (
-        <div className="absolute z-30 mt-2 w-64 overflow-hidden rounded-xl border border-slate-100 bg-white py-1.5 shadow-lg">
-          {options.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => {
-                onChange(opt.value);
-                setOpen(false);
-              }}
-              className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-slate-50 ${
-                opt.value === value ? "bg-brand-50" : ""
-              }`}
-            >
-              {opt.initials && (
-                <span
-                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white ${colorClass}`}
-                >
-                  {opt.initials}
-                </span>
-              )}
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium text-slate-800">{opt.label}</span>
-                {opt.sublabel && (
-                  <span className="block truncate text-xs text-slate-400">{opt.sublabel}</span>
+        <div className="absolute z-30 mt-2 w-72 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-lg">
+          <div className="border-b border-slate-100 p-2">
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Type to search..."
+              className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+
+          <div className="max-h-60 overflow-y-auto py-1">
+            {filtered.length === 0 && (
+              <p className="px-3 py-4 text-center text-sm text-slate-400">No matches</p>
+            )}
+            {filtered.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  onChange(opt.value);
+                  setOpen(false);
+                  setQuery("");
+                }}
+                className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-slate-50 ${
+                  opt.value === value ? "bg-brand-50" : ""
+                }`}
+              >
+                {opt.initials && (
+                  <span
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white ${colorClass}`}
+                  >
+                    {opt.initials}
+                  </span>
                 )}
-              </span>
-              {opt.value === value && (
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4 shrink-0 text-brand-600"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M5 13l4 4L19 7" />
-                </svg>
-              )}
-            </button>
-          ))}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium text-slate-800">{opt.label}</span>
+                  {opt.sublabel && (
+                    <span className="block truncate text-xs text-slate-400">{opt.sublabel}</span>
+                  )}
+                </span>
+                {opt.value === value && (
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4 shrink-0 text-brand-600"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

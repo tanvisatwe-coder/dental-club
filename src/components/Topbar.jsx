@@ -11,8 +11,19 @@ const initialsOf = (name = "") =>
  *  - role: "Dentist" | "Patient" — shown as a small pill badge
  *  - userName: display name on the right (e.g. "Dr. Mehra" or the patient's name)
  *  - notifications: number shown on the bell badge
+ *  - searchValue / onSearchChange: controlled search input (optional — if
+ *    omitted the box still renders but doesn't filter anything)
+ *  - searchPlaceholder: placeholder text for the search box
  */
-const Topbar = ({ section, role = "Patient", userName = "User", notifications = 0 }) => {
+const Topbar = ({
+  section,
+  role = "Patient",
+  userName = "User",
+  notifications = 0,
+  searchValue = "",
+  onSearchChange,
+  searchPlaceholder = "Search patients, records...",
+}) => {
   return (
     <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-slate-100 bg-white/90 px-6 py-3 backdrop-blur">
       <div className="flex min-w-0 items-center gap-2 text-sm">
@@ -26,13 +37,17 @@ const Topbar = ({ section, role = "Patient", userName = "User", notifications = 
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="relative hidden md:block">
-          <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            placeholder="Search patients, records..."
-            className="w-56 rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 lg:w-64"
-          />
-        </div>
+        {onSearchChange && (
+          <div className="relative hidden md:block">
+            <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={searchValue}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder={searchPlaceholder}
+              className="w-56 rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 lg:w-64"
+            />
+          </div>
+        )}
 
         <button className="relative rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-100" aria-label="Notifications">
           <IconBell className="h-5 w-5" />

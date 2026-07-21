@@ -38,3 +38,26 @@ export const getUnreadCount = (doctorName, patientName, role) => {
   const seenCount = getLastSeenCount(doctorName, patientName, role);
   return messages.slice(seenCount).filter((m) => m.sender !== role).length;
 };
+
+export const deleteThread = (doctorName, patientName) => {
+  localStorage.removeItem(storageKeyFor(doctorName, patientName));
+};
+
+// Posts a report snapshot into the chat thread itself as a special message
+// type (rendered as a card, not plain text) so "a report was sent" shows up
+// as an actual message both sides can see, not just a silent data update.
+export const sendReportMessage = (doctorName, patientName, sender, reportSnapshot) => {
+  const messages = loadMessages(doctorName, patientName);
+  const next = [
+    ...messages,
+    {
+      id: Date.now(),
+      sender,
+      type: "report",
+      report: reportSnapshot,
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    },
+  ];
+  saveMessages(doctorName, patientName, next);
+  return next;
+};

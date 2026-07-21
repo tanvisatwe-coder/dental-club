@@ -1,11 +1,21 @@
 import React, { useEffect, useRef, useState } from "react";
+import { toast } from "react-toastify";
 import { IconMessage } from "./icons";
 import {
   storageKeyFor,
   loadMessages,
   saveMessages,
   markThreadRead,
+  sendReportMessage,
 } from "../data/chatStore";
+import { loadChart } from "../data/chartStore";
+import { sendReport } from "../data/reportsStore";
+
+const computeRisk = (cavityCount, bleedingScore) => {
+  if (bleedingScore > 25 || cavityCount > 6) return "High";
+  if (bleedingScore > 10 || cavityCount > 3) return "Medium";
+  return "Low";
+};
 
 /**
  * ChatBox
@@ -13,8 +23,14 @@ import {
  *  - doctorName: which doctor this thread belongs to
  *  - patientName: which patient this thread belongs to
  *  - role: "Dentist" | "Patient" — controls bubble alignment + who a new message is sent as
+ *  - patientProfile: optional { appointment, advice } shown in a sent report card
  */
-const ChatBox = ({ doctorName = "Dr. Sarah Mehta", patientName = "John Doe", role = "Patient" }) => {
+const ChatBox = ({
+  doctorName = "Dr. Sarah Mehta",
+  patientName = "John Doe",
+  role = "Patient",
+  patientProfile = {},
+}) => {
   const [messages, setMessages] = useState(() => loadMessages(doctorName, patientName));
   const [draft, setDraft] = useState("");
   const bottomRef = useRef(null);
@@ -62,6 +78,35 @@ const ChatBox = ({ doctorName = "Dr. Sarah Mehta", patientName = "John Doe", rol
     setDraft("");
   };
 
+  const handleSendReport = () => {
+    const chart = loadChart(patientName);
+    const counts = Object.values(chart.teeth).reduce(
+      (acc, s) => {
+        if (s === 0) acc.healthyCount++;
+        else if (s === 1) acc.cavityCount++;
+        else if (s === 2) acc.filledCount++;
+        else if (s === 3) acc.missingCount++;
+        return acc;
+      },
+      { healthyCount: 0, cavityCount: 0, filledCount: 0, missingCount: 0 }
+    );
+    const bleedingScore = Object.values(chart.bleeding || {}).reduce((a, b) => a + b, 0);
+
+    const snapshot = {
+      ...counts,
+      bleedingScore,
+      risk: computeRisk(counts.cavityCount, bleedingScore),
+      appointment: patientProfile.appointment,
+      advice: patientProfile.advice,
+      sentBy: doctorName,
+    };
+
+    sendReport(patientName, snapshot);
+    const next = sendReportMessage(doctorName, patientName, role, snapshot);
+    setMessages(next);
+    toast.success(`Report sent to ${patientName}.`);
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -71,14 +116,24 @@ const ChatBox = ({ doctorName = "Dr. Sarah Mehta", patientName = "John Doe", rol
 
   return (
     <div className="flex h-[70vh] flex-col rounded-2xl border border-slate-100 bg-white shadow-sm">
-      <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-4">
-        <IconMessage className="h-4 w-4 text-brand-600" />
-        <div>
-          <h2 className="font-bold text-slate-800">
-            {role === "Dentist" ? `Chat with ${patientName}` : `Chat with ${doctorName}`}
-          </h2>
-          <p className="text-xs text-slate-400">Messages sync automatically for both sides</p>
+      <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-5 py-4">
+        <div className="flex items-center gap-2">
+          <IconMessage className="h-4 w-4 text-brand-600" />
+          <div>
+            <h2 className="font-bold text-slate-800">
+              {role === "Dentist" ? `Chat with ${patientName}` : `Chat with ${doctorName}`}
+            </h2>
+            <p className="text-xs text-slate-400">Messages sync automatically for both sides</p>
+          </div>
         </div>
+        {role === "Dentist" && (
+          <button
+            onClick={handleSendReport}
+            className="shrink-0 rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 transition-colors hover:bg-brand-100"
+          >
+            Send Report
+          </button>
+        )}
       </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
@@ -90,6 +145,29 @@ const ChatBox = ({ doctorName = "Dr. Sarah Mehta", patientName = "John Doe", rol
 
         {messages.map((m) => {
           const isMine = m.sender === role;
+
+          if (m.type === "report") {
+            const r = m.report;
+            return (
+              <div key={m.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+                <div className="max-w-[85%] rounded-2xl border border-brand-100 bg-brand-50/60 px-4 py-3 text-sm">
+                  <p className="mb-2 flex items-center gap-1.5 font-semibold text-brand-700">
+                    📋 Dental Report
+                  </p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
+                    <span>Healthy: <b>{r.healthyCount}</b></span>
+                    <span>Cavities: <b>{r.cavityCount}</b></span>
+                    <span>Filled: <b>{r.filledCount}</b></span>
+                    <span>Missing: <b>{r.missingCount}</b></span>
+                  </div>
+                  <p className="mt-2 text-xs font-medium text-slate-500">Risk: {r.risk}</p>
+                  {r.advice && <p className="mt-1 text-xs text-slate-600">Advice: {r.advice}</p>}
+                  <p className="mt-2 text-[10px] text-slate-400">{m.sender} · {m.time}</p>
+                </div>
+              </div>
+            );
+          }
+
           return (
             <div key={m.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
               <div
