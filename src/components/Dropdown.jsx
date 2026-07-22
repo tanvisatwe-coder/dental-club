@@ -14,6 +14,7 @@ const Dropdown = ({ label, value, options, onChange, colorClass = "bg-brand-600"
   const [query, setQuery] = useState("");
   const ref = useRef(null);
   const inputRef = useRef(null);
+  const listId = useRef(`dropdown-list-${Math.random().toString(36).slice(2, 9)}`).current;
 
   useEffect(() => {
     const handleClick = (e) => {
@@ -22,8 +23,18 @@ const Dropdown = ({ label, value, options, onChange, colorClass = "bg-brand-600"
         setQuery("");
       }
     };
+    const handleEscape = (e) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        setQuery("");
+      }
+    };
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, []);
 
   useEffect(() => {
@@ -49,6 +60,9 @@ const Dropdown = ({ label, value, options, onChange, colorClass = "bg-brand-600"
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-controls={listId}
           className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm transition-colors hover:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-500"
         >
           {selected?.initials && (
@@ -81,11 +95,12 @@ const Dropdown = ({ label, value, options, onChange, colorClass = "bg-brand-600"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Type to search..."
+              aria-label="Search options"
               className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
 
-          <div className="max-h-60 overflow-y-auto py-1">
+          <div id={listId} role="listbox" className="max-h-60 overflow-y-auto py-1">
             {filtered.length === 0 && (
               <p className="px-3 py-4 text-center text-sm text-slate-400">No matches</p>
             )}
@@ -93,6 +108,8 @@ const Dropdown = ({ label, value, options, onChange, colorClass = "bg-brand-600"
               <button
                 key={opt.value}
                 type="button"
+                role="option"
+                aria-selected={opt.value === value}
                 onClick={() => {
                   onChange(opt.value);
                   setOpen(false);

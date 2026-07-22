@@ -47,6 +47,7 @@ const Card = ({ className = "", children }) => (
 const DentistDashboard = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loggedInDoctor, setLoggedInDoctor] = useState(doctorsData[0].name);
   const [auditLog, setAuditLog] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -261,6 +262,8 @@ const DentistDashboard = () => {
         navigate={navigate}
         switchRoute="/patient"
         switchLabel="Switch to Patient View"
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
       <div className="flex min-h-screen flex-1 flex-col">
@@ -272,6 +275,7 @@ const DentistDashboard = () => {
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
           searchPlaceholder="Search patients..."
+          onMenuClick={() => setSidebarOpen(true)}
         />
 
         <main className="flex-1 space-y-6 p-6">

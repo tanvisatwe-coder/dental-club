@@ -22,6 +22,7 @@ const SECTION_LABELS = {
 const PatientDashboard = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState(doctorsData[0].name);
 
   // Shared patient roster — same source the dentist adds patients to
@@ -110,6 +111,8 @@ const PatientDashboard = () => {
         navigate={navigate}
         switchRoute="/dentist"
         switchLabel="Switch to Dentist View"
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
       <div className="flex min-h-screen flex-1 flex-col">
@@ -118,6 +121,7 @@ const PatientDashboard = () => {
           role="Patient"
           userName={selectedPatient || "Patient"}
           notifications={unreadCount}
+          onMenuClick={() => setSidebarOpen(true)}
         />
 
         <main className="flex-1 space-y-6 p-6">

@@ -23,13 +23,25 @@ const Topbar = ({
   searchValue = "",
   onSearchChange,
   searchPlaceholder = "Search patients, records...",
+  onMenuClick,
 }) => {
   return (
-    <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-slate-100 bg-white/90 px-6 py-3 backdrop-blur">
+    <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-slate-100 bg-white/90 px-4 py-3 backdrop-blur sm:px-6">
       <div className="flex min-w-0 items-center gap-2 text-sm">
+        {onMenuClick && (
+          <button
+            onClick={onMenuClick}
+            className="mr-1 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden"
+            aria-label="Open menu"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        )}
         <span className="font-semibold text-brand-700">DentalClub</span>
-        <span className="text-slate-300">/</span>
-        <span className="truncate font-medium text-slate-700">{section}</span>
+        <span className="hidden text-slate-300 sm:inline">/</span>
+        <span className="hidden truncate font-medium text-slate-700 sm:inline">{section}</span>
         <span className="ml-1 hidden items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-600 ring-1 ring-sky-100 sm:flex">
           <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
           {role} View
@@ -49,7 +61,7 @@ const Topbar = ({
           </div>
         )}
 
-        <button className="relative rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-100" aria-label="Notifications">
+        <button className="relative rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" aria-label="Notifications">
           <IconBell className="h-5 w-5" />
           {notifications > 0 && (
             <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white">

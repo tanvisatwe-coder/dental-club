@@ -1,10 +1,11 @@
 import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Appointment from "./pages/Appointment";
 import DentistDashboard from "./pages/DentistDashboard";
 import PatientDashboard from "./pages/PatientDashboard";
+import NotFound from "./pages/NotFound";
 
 function App() {
   return (
@@ -14,7 +15,7 @@ function App() {
       <Route path="/appointment" element={<Appointment />} />
       <Route path="/dentist" element={<DentistDashboard />} />
       <Route path="/patient" element={<PatientDashboard />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

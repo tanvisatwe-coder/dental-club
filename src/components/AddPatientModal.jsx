@@ -57,10 +57,18 @@ const AddPatientModal = ({ open, onClose, onSubmit, mode = "add", initialData = 
   const isEdit = mode === "edit";
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4"
+      onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="patient-modal-title"
+        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+      >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-800">
+          <h2 id="patient-modal-title" className="text-lg font-bold text-slate-800">
             {isEdit ? `Edit ${initialData?.name || "Patient"}` : "Add Patient"}
           </h2>
           <button
