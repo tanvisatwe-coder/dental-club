@@ -17,6 +17,7 @@ import { getUnreadCount, sendReportMessage, deleteThread } from "../data/chatSto
 import { loadChart, saveChart, deleteChart } from "../data/chartStore";
 import { loadPatients, addPatient, updatePatient, deletePatient, patientsStorageKey } from "../data/patientsStore";
 import { sendReport, loadReports, deleteReport, deleteAllReports } from "../data/reportsStore";
+import { loadBookings, updateBookingStatus, deleteBooking, bookingsStorageKey } from "../data/appointmentsStore";
 import {
   IconDroplet,
   IconSave,
@@ -73,6 +74,25 @@ const DentistDashboard = () => {
   const [selectedMode, setSelectedMode] = useState("cavity");
   const [unreadCount, setUnreadCount] = useState(0);
   const [sentReportsList, setSentReportsList] = useState(() => loadReports(selectedPatient));
+  const [bookings, setBookings] = useState(() => loadBookings());
+
+  useEffect(() => {
+    const handleStorage = (e) => {
+      if (e.key === bookingsStorageKey) setBookings(loadBookings());
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  const handleConfirmBooking = (id) => {
+    setBookings(updateBookingStatus(id, "Confirmed"));
+    toast.success("Appointment confirmed.");
+  };
+
+  const handleDeleteBooking = (id) => {
+    setBookings(deleteBooking(id));
+    toast.success("Appointment request removed.");
+  };
 
   useEffect(() => {
     setSentReportsList(loadReports(selectedPatient));
@@ -340,8 +360,8 @@ const DentistDashboard = () => {
                 items={[
                   { label: "Total Patients", value: allPatients.length },
                   { label: "Charts Updated", value: auditLog.length },
-                  { label: "Appointments Today", value: 4 },
-                  { label: "Pending Follow-ups", value: 2 },
+                  { label: "Appointment Requests", value: bookings.length },
+                  { label: "Pending Confirmation", value: bookings.filter((b) => b.status !== "Confirmed").length },
                 ]}
               />
 
@@ -355,8 +375,19 @@ const DentistDashboard = () => {
                 <p className="-mt-3 mb-4 text-sm text-slate-500">Select a patient to begin clinical charting</p>
 
                 <div className="space-y-3">
-                  {filteredPatients.length === 0 && (
-                    <p className="py-6 text-center text-sm text-slate-400">No patients match "{searchTerm}"</p>
+                  {allPatients.length === 0 && (
+                    <div className="flex flex-col items-center gap-3 py-10 text-center">
+                      <p className="text-sm text-slate-500">No patients yet — add your first patient to get started.</p>
+                      <button
+                        onClick={() => setShowAddPatient(true)}
+                        className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700"
+                      >
+                        + Add Patient
+                      </button>
+                    </div>
+                  )}
+                  {allPatients.length > 0 && filteredPatients.length === 0 && (
+                    <p className="py-6 text-center text-sm text-slate-500">No patients match "{searchTerm}"</p>
                   )}
                   {filteredPatients.map((name) => {
                     const p = patientProfiles[name];
@@ -418,8 +449,19 @@ const DentistDashboard = () => {
                 <h2 className="font-bold text-slate-800">All Patients</h2>
                 <span className="text-xs text-slate-400">{filteredPatients.length} shown</span>
               </div>
-              {filteredPatients.length === 0 && (
-                <p className="py-6 text-center text-sm text-slate-400">No patients match "{searchTerm}"</p>
+              {allPatients.length === 0 && (
+                <div className="flex flex-col items-center gap-3 py-10 text-center">
+                  <p className="text-sm text-slate-500">No patients yet — add your first patient to get started.</p>
+                  <button
+                    onClick={() => setShowAddPatient(true)}
+                    className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700"
+                  >
+                    + Add Patient
+                  </button>
+                </div>
+              )}
+              {allPatients.length > 0 && filteredPatients.length === 0 && (
+                <p className="py-6 text-center text-sm text-slate-500">No patients match "{searchTerm}"</p>
               )}
               <div className="divide-y divide-slate-100">
                 {filteredPatients.map((name) => {
@@ -458,19 +500,87 @@ const DentistDashboard = () => {
           )}
 
           {activeTab === "appointments" && (
+            <div className="space-y-6">
+              <Card>
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="font-bold text-slate-800">Appointment Requests</h2>
+                  <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">
+                    {bookings.length} request{bookings.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                {bookings.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-slate-500">
+                    No booking requests yet — they'll show up here when patients book from the site.
+                  </p>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {[...bookings].reverse().map((b) => (
+                      <div key={b.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">{b.name}</p>
+                          <p className="text-xs text-slate-500">
+                            {b.date} at {b.time} · {b.reason} · {b.phone}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              b.status === "Confirmed"
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-amber-50 text-amber-700"
+                            }`}
+                          >
+                            {b.status}
+                          </span>
+                          {b.status !== "Confirmed" && (
+                            <button
+                              onClick={() => handleConfirmBooking(b.id)}
+                              className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-700"
+                            >
+                              Confirm
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDeleteBooking(b.id)}
+                            className="rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-50"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+
+              <Card>
+                <h2 className="mb-4 font-bold text-slate-800">Scheduled Patient Visits</h2>
+                {allPatients.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-slate-500">
+                    No appointments yet — they'll show up here once you add patients.
+                  </p>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {allPatients.map((name) => {
+                      const p = patientProfiles[name];
+                      return (
+                        <div key={name} className="flex items-center justify-between gap-4 py-3">
+                          <p className="text-sm font-semibold text-slate-800">{name}</p>
+                          <span className="text-xs font-medium text-slate-500">{p.appointment}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Card>
+            </div>
+          )}
+
+          {activeTab === "chats" && !selectedPatient && (
             <Card>
-              <h2 className="mb-4 font-bold text-slate-800">Upcoming Appointments</h2>
-              <div className="divide-y divide-slate-100">
-                {allPatients.map((name) => {
-                  const p = patientProfiles[name];
-                  return (
-                    <div key={name} className="flex items-center justify-between gap-4 py-3">
-                      <p className="text-sm font-semibold text-slate-800">{name}</p>
-                      <span className="text-xs font-medium text-slate-500">{p.appointment}</span>
-                    </div>
-                  );
-                })}
-              </div>
+              <p className="py-6 text-center text-sm text-slate-500">
+                Add a patient first to start a conversation.
+              </p>
             </Card>
           )}
 
@@ -481,6 +591,20 @@ const DentistDashboard = () => {
               role="Dentist"
               patientProfile={profile}
             />
+          )}
+
+          {activeTab === "dentalChart" && !selectedPatient && (
+            <Card>
+              <div className="flex flex-col items-center gap-3 py-10 text-center">
+                <p className="text-sm text-slate-500">No patient selected — add a patient to start charting.</p>
+                <button
+                  onClick={() => setShowAddPatient(true)}
+                  className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700"
+                >
+                  + Add Patient
+                </button>
+              </div>
+            </Card>
           )}
 
           {activeTab === "dentalChart" && selectedPatient && (
@@ -573,7 +697,15 @@ const DentistDashboard = () => {
             </div>
           )}
 
-          {activeTab === "reports" && (
+          {activeTab === "reports" && !selectedPatient && (
+            <Card>
+              <p className="py-6 text-center text-sm text-slate-500">
+                No patient selected — add a patient to generate reports.
+              </p>
+            </Card>
+          )}
+
+          {activeTab === "reports" && selectedPatient && (
             <div className="space-y-6">
               <Card>
                 <div className="flex items-center justify-between">
@@ -583,10 +715,10 @@ const DentistDashboard = () => {
                   </span>
                 </div>
                 <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <div><dt className="text-xs text-slate-400">Healthy</dt><dd className="text-lg font-bold text-slate-800">{healthyCount}</dd></div>
-                  <div><dt className="text-xs text-slate-400">Cavities</dt><dd className="text-lg font-bold text-slate-800">{cavityCount}</dd></div>
-                  <div><dt className="text-xs text-slate-400">Filled</dt><dd className="text-lg font-bold text-slate-800">{filledCount}</dd></div>
-                  <div><dt className="text-xs text-slate-400">Missing</dt><dd className="text-lg font-bold text-slate-800">{missingCount}</dd></div>
+                  <div><dt className="text-xs text-slate-500">Healthy</dt><dd className="text-lg font-bold text-slate-800">{healthyCount}</dd></div>
+                  <div><dt className="text-xs text-slate-500">Cavities</dt><dd className="text-lg font-bold text-slate-800">{cavityCount}</dd></div>
+                  <div><dt className="text-xs text-slate-500">Filled</dt><dd className="text-lg font-bold text-slate-800">{filledCount}</dd></div>
+                  <div><dt className="text-xs text-slate-500">Missing</dt><dd className="text-lg font-bold text-slate-800">{missingCount}</dd></div>
                 </dl>
                 <p className="mt-4 text-sm text-slate-500">Appointment: <span className="font-medium text-slate-700">{profile.appointment}</span></p>
 
