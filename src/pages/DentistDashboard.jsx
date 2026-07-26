@@ -18,7 +18,7 @@ import { getUnreadCount, loadMessages, sendReportMessage, deleteThread } from ".
 import { loadChart, saveChart, deleteChart } from "../data/chartStore";
 import { loadPatients, addPatient, updatePatient, deletePatient, patientsStorageKey } from "../data/patientsStore";
 import { sendReport, loadReports, deleteReport, deleteAllReports } from "../data/reportsStore";
-import { loadBookings, updateBookingStatus, deleteBooking, bookingsStorageKey } from "../data/appointmentsStore";
+import { loadBookings, updateBookingStatus, deleteBooking, subscribeToBookings } from "../data/appointmentsStore";
 import {
   IconDroplet,
   IconSave,
@@ -78,20 +78,29 @@ const DentistDashboard = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationItems, setNotificationItems] = useState([]);
   const [sentReportsList, setSentReportsList] = useState(() => loadReports(selectedPatient));
-  const [bookings, setBookings] = useState(() => loadBookings());
+  const [bookings, setBookings] = useState([]);
 
+  // Load bookings from Supabase, then subscribe to live changes so a
+  // booking made on ANY device (phone, another computer, etc.) shows up
+  // here automatically, no refresh needed.
   useEffect(() => {
-    const handleStorage = (e) => {
-      if (e.key === bookingsStorageKey) setBookings(loadBookings());
+    let active = true;
+    const refreshBookings = async () => {
+      const data = await loadBookings();
+      if (active) setBookings(data);
     };
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    refreshBookings();
+    const unsubscribe = subscribeToBookings(refreshBookings);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 
-  const handleConfirmBooking = (booking) => {
+  const handleConfirmBooking = async (booking) => {
     if (patientProfiles[booking.name]) {
       // Already an existing patient — just confirm, nothing else to do.
-      setBookings(updateBookingStatus(booking.id, "Confirmed"));
+      await updateBookingStatus(booking.id, "Confirmed");
       toast.success("Appointment confirmed.");
       return;
     }
@@ -101,8 +110,8 @@ const DentistDashboard = () => {
     setShowAddPatient(true);
   };
 
-  const handleDeleteBooking = (id) => {
-    setBookings(deleteBooking(id));
+  const handleDeleteBooking = async (id) => {
+    await deleteBooking(id);
     toast.success("Appointment request removed.");
   };
 
@@ -259,13 +268,13 @@ const DentistDashboard = () => {
     toast.success("Report deleted.");
   };
 
-  const handleAddPatient = (newProfile) => {
+  const handleAddPatient = async (newProfile) => {
     const next = addPatient(newProfile.name, newProfile);
     setPatientProfiles(next);
     setShowAddPatient(false);
 
     if (bookingToConvert) {
-      setBookings(updateBookingStatus(bookingToConvert.id, "Confirmed"));
+      await updateBookingStatus(bookingToConvert.id, "Confirmed");
       setBookingToConvert(null);
       toast.success(`${newProfile.name} confirmed and added to your patient list.`);
       return;

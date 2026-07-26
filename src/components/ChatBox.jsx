@@ -7,6 +7,7 @@ import {
   saveMessages,
   markThreadRead,
   sendReportMessage,
+  deleteMessage,
 } from "../data/chatStore";
 import { loadChart } from "../data/chartStore";
 import { sendReport } from "../data/reportsStore";
@@ -107,6 +108,11 @@ const ChatBox = ({
     toast.success(`Report sent to ${patientName}.`);
   };
 
+  const handleDeleteMessage = (messageId) => {
+    const next = deleteMessage(doctorName, patientName, messageId);
+    setMessages(next);
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -149,7 +155,18 @@ const ChatBox = ({
           if (m.type === "report") {
             const r = m.report;
             return (
-              <div key={m.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+              <div key={m.id} className={`group flex items-start gap-1.5 ${isMine ? "justify-end" : "justify-start"}`}>
+                {isMine && (
+                  <button
+                    onClick={() => handleDeleteMessage(m.id)}
+                    aria-label="Delete message"
+                    className="mt-3 shrink-0 rounded p-1 text-slate-300 opacity-0 transition-opacity hover:bg-slate-100 hover:text-rose-500 group-hover:opacity-100 dark:text-slate-600 dark:hover:bg-slate-800"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <path d="M4 6h16M9 6V4h6v2M6 6l1 14h10l1-14" />
+                    </svg>
+                  </button>
+                )}
                 <div className="max-w-[85%] rounded-2xl border border-brand-100 bg-brand-50/60 px-4 py-3 text-sm dark:border-brand-900 dark:bg-brand-950/30">
                   <p className="mb-2 flex items-center gap-1.5 font-semibold text-brand-700 dark:text-brand-300">
                     📋 Dental Report
@@ -169,7 +186,18 @@ const ChatBox = ({
           }
 
           return (
-            <div key={m.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+            <div key={m.id} className={`group flex items-start gap-1.5 ${isMine ? "justify-end" : "justify-start"}`}>
+              {isMine && (
+                <button
+                  onClick={() => handleDeleteMessage(m.id)}
+                  aria-label="Delete message"
+                  className="mt-2 shrink-0 rounded p-1 text-slate-300 opacity-0 transition-opacity hover:bg-slate-100 hover:text-rose-500 group-hover:opacity-100 dark:text-slate-600 dark:hover:bg-slate-800"
+                >
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M4 6h16M9 6V4h6v2M6 6l1 14h10l1-14" />
+                  </svg>
+                </button>
+              )}
               <div
                 className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${
                   isMine

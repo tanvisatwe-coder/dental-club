@@ -13,6 +13,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.8",
     "chart.js": "^4.5.1",
     "framer-motion": "^12.40.0",
     "jspdf": "^4.2.1",

@@ -150,19 +150,25 @@ function BookingForm() {
     return next;
   };
 
-  const handleSubmit = (e) => {
+  const [submitError, setSubmitError] = useState("");
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const validationErrors = validate();
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length > 0) return;
 
+    setSubmitError("");
     setIsSubmitting(true);
-    setTimeout(() => {
-      saveBooking(form);
-      setIsSubmitting(false);
+    try {
+      await saveBooking(form);
       setConfirmed(form);
       setForm(emptyForm);
-    }, 500);
+    } catch (err) {
+      setSubmitError("Something went wrong saving your booking. Please check your connection and try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (confirmed) {
@@ -261,6 +267,12 @@ function BookingForm() {
           </select>
           {errors.reason && <p role="alert" className="mt-1 text-xs font-medium text-rose-600">{errors.reason}</p>}
         </div>
+
+        {submitError && (
+          <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-600">
+            {submitError}
+          </p>
+        )}
 
         <button
           type="submit"

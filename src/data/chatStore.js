@@ -43,6 +43,14 @@ export const deleteThread = (doctorName, patientName) => {
   localStorage.removeItem(storageKeyFor(doctorName, patientName));
 };
 
+// Removes a single message from a thread (e.g. sent by mistake, wrong info).
+export const deleteMessage = (doctorName, patientName, messageId) => {
+  const messages = loadMessages(doctorName, patientName);
+  const next = messages.filter((m) => m.id !== messageId);
+  saveMessages(doctorName, patientName, next);
+  return next;
+};
+
 // Posts a report snapshot into the chat thread itself as a special message
 // type (rendered as a card, not plain text) so "a report was sent" shows up
 // as an actual message both sides can see, not just a silent data update.
