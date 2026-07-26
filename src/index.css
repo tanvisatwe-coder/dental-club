@@ -1,6 +1,10 @@
 @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 
+/* Makes `dark:` utilities respond to a `.dark` class on <html> (toggled by
+   the user) instead of only the OS-level prefers-color-scheme setting. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
   --color-brand-50: #ecfeff;
@@ -24,6 +28,11 @@ body {
   font-family: var(--font-sans);
   background-color: #f8fafc;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.dark body {
+  background-color: #0f172a;
 }
 
 /* Slim, unobtrusive scrollbar for chat panes and the tooth-chart's
@@ -38,6 +47,9 @@ body {
 }
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
 }
 
 @keyframes fadeIn {

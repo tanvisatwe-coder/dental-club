@@ -115,21 +115,21 @@ const ChatBox = ({
   };
 
   return (
-    <div className="flex h-[70vh] flex-col rounded-2xl border border-slate-100 bg-white shadow-sm">
-      <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-5 py-4">
+    <div className="flex h-[70vh] flex-col rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
         <div className="flex items-center gap-2">
           <IconMessage className="h-4 w-4 text-brand-600" />
           <div>
-            <h2 className="font-bold text-slate-800">
+            <h2 className="font-bold text-slate-800 dark:text-slate-100">
               {role === "Dentist" ? `Chat with ${patientName}` : `Chat with ${doctorName}`}
             </h2>
-            <p className="text-xs text-slate-400">Messages sync automatically for both sides</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500">Messages sync automatically for both sides</p>
           </div>
         </div>
         {role === "Dentist" && (
           <button
             onClick={handleSendReport}
-            className="shrink-0 rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 transition-colors hover:bg-brand-100"
+            className="shrink-0 rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 transition-colors hover:bg-brand-100 dark:bg-brand-950/50 dark:text-brand-300 dark:hover:bg-brand-900"
           >
             Send Report
           </button>
@@ -138,7 +138,7 @@ const ChatBox = ({
 
       <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
         {messages.length === 0 && (
-          <p className="mt-6 text-center text-sm text-slate-400">
+          <p className="mt-6 text-center text-sm text-slate-400 dark:text-slate-500">
             No messages yet — say hello 👋
           </p>
         )}
@@ -150,19 +150,19 @@ const ChatBox = ({
             const r = m.report;
             return (
               <div key={m.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
-                <div className="max-w-[85%] rounded-2xl border border-brand-100 bg-brand-50/60 px-4 py-3 text-sm">
-                  <p className="mb-2 flex items-center gap-1.5 font-semibold text-brand-700">
+                <div className="max-w-[85%] rounded-2xl border border-brand-100 bg-brand-50/60 px-4 py-3 text-sm dark:border-brand-900 dark:bg-brand-950/30">
+                  <p className="mb-2 flex items-center gap-1.5 font-semibold text-brand-700 dark:text-brand-300">
                     📋 Dental Report
                   </p>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-300">
                     <span>Healthy: <b>{r.healthyCount}</b></span>
                     <span>Cavities: <b>{r.cavityCount}</b></span>
                     <span>Filled: <b>{r.filledCount}</b></span>
                     <span>Missing: <b>{r.missingCount}</b></span>
                   </div>
-                  <p className="mt-2 text-xs font-medium text-slate-500">Risk: {r.risk}</p>
-                  {r.advice && <p className="mt-1 text-xs text-slate-600">Advice: {r.advice}</p>}
-                  <p className="mt-2 text-[10px] text-slate-400">{m.sender} · {m.time}</p>
+                  <p className="mt-2 text-xs font-medium text-slate-500 dark:text-slate-400">Risk: {r.risk}</p>
+                  {r.advice && <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Advice: {r.advice}</p>}
+                  <p className="mt-2 text-[10px] text-slate-400 dark:text-slate-500">{m.sender} · {m.time}</p>
                 </div>
               </div>
             );
@@ -174,11 +174,11 @@ const ChatBox = ({
                 className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${
                   isMine
                     ? "rounded-br-sm bg-brand-600 text-white"
-                    : "rounded-bl-sm bg-slate-100 text-slate-800"
+                    : "rounded-bl-sm bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100"
                 }`}
               >
                 <p>{m.text}</p>
-                <p className={`mt-1 text-[10px] ${isMine ? "text-brand-100" : "text-slate-400"}`}>
+                <p className={`mt-1 text-[10px] ${isMine ? "text-brand-100" : "text-slate-400 dark:text-slate-500"}`}>
                   {m.sender} · {m.time}
                 </p>
               </div>
@@ -188,14 +188,14 @@ const ChatBox = ({
         <div ref={bottomRef} />
       </div>
 
-      <div className="flex items-end gap-2 border-t border-slate-100 p-3">
+      <div className="flex items-end gap-2 border-t border-slate-100 p-3 dark:border-slate-800">
         <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={handleKeyDown}
           rows={1}
           placeholder="Type a message..."
-          className="max-h-28 flex-1 resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          className="max-h-28 flex-1 resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
         />
         <button
           onClick={handleSend}

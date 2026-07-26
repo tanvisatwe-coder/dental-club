@@ -2,13 +2,14 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Sidebar from "../components/Sidebar";
+import { useTheme } from "../hooks/useTheme";
 import Topbar from "../components/Topbar";
 import ToothChart from "../components/ToothChart";
 import ChatBox from "../components/ChatBox";
 import StatCard from "../components/StatCard";
 import Dropdown from "../components/Dropdown";
 import doctorsData from "../data/doctorsData";
-import { getUnreadCount } from "../data/chatStore";
+import { getUnreadCount, loadMessages } from "../data/chatStore";
 import { loadChart, chartKeyFor } from "../data/chartStore";
 import { loadPatients, patientsStorageKey } from "../data/patientsStore";
 import { loadReports, reportsKeyFor } from "../data/reportsStore";
@@ -21,6 +22,7 @@ const SECTION_LABELS = {
 
 const PatientDashboard = () => {
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState(doctorsData[0].name);
@@ -42,6 +44,7 @@ const PatientDashboard = () => {
   const [bleedingMap, setBleedingMap] = useState(() => loadChart(selectedPatient).bleeding);
   const [lastUpdated, setLastUpdated] = useState(() => loadChart(selectedPatient).updatedAt);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationItems, setNotificationItems] = useState([]);
 
   const handlePatientChange = (next) => {
     setSelectedPatient(next);
@@ -73,6 +76,24 @@ const PatientDashboard = () => {
         0
       );
       setUnreadCount(total);
+
+      const items = doctorsData
+        .map((doc) => {
+          const messages = loadMessages(doc.name, selectedPatient);
+          const unread = getUnreadCount(doc.name, selectedPatient, "Patient");
+          const last = messages[messages.length - 1];
+          return {
+            key: doc.name,
+            name: doc.name,
+            preview: last ? (last.type === "report" ? "Sent a dental report" : last.text) : "",
+            time: last ? last.time : "",
+            sortKey: last ? last.id : 0,
+            unread,
+          };
+        })
+        .filter((item) => item.unread > 0)
+        .sort((a, b) => b.sortKey - a.sortKey);
+      setNotificationItems(items);
     };
     recalc();
     window.addEventListener("storage", recalc);
@@ -103,7 +124,7 @@ const PatientDashboard = () => {
   }, [selectedPatient]);
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -113,6 +134,8 @@ const PatientDashboard = () => {
         switchLabel="Switch to Dentist View"
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        theme={theme}
+        toggleTheme={toggleTheme}
       />
 
       <div className="flex min-h-screen flex-1 flex-col">
@@ -121,16 +144,21 @@ const PatientDashboard = () => {
           role="Patient"
           userName={selectedPatient || "Patient"}
           notifications={unreadCount}
+          notificationItems={notificationItems}
+          onSelectNotification={(item) => {
+            setSelectedDoctor(item.name);
+            setActiveTab("messages");
+          }}
           onMenuClick={() => setSidebarOpen(true)}
         />
 
         <main className="flex-1 space-y-6 p-6">
           {activeTab === "overview" && allPatients.length > 0 && (
             <div className="space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <div>
-                  <h1 className="text-lg font-bold text-slate-800">Welcome, {selectedPatient}</h1>
-                  <p className="text-sm text-slate-500">Here's a look at your dental record</p>
+                  <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100">Welcome, {selectedPatient}</h1>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Here's a look at your dental record</p>
                 </div>
                 <Dropdown
                   value={selectedPatient}
@@ -152,14 +180,14 @@ const PatientDashboard = () => {
                 <StatCard label="Missing" value={missingCount} tone="slate" />
               </div>
 
-              <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+              <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h3 className="font-bold text-slate-800">Your Tooth Chart</h3>
-                    <p className="text-sm text-slate-500">Recorded by your dentist — read only</p>
+                    <h3 className="font-bold text-slate-800 dark:text-slate-100">Your Tooth Chart</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Recorded by your dentist — read only</p>
                   </div>
                   {lastUpdated && (
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-slate-400 dark:text-slate-500">
                       Last updated {new Date(lastUpdated).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
                     </span>
                   )}
@@ -177,7 +205,7 @@ const PatientDashboard = () => {
 
           {activeTab === "messages" && (
             <div className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <Dropdown
                   label="Chatting with"
                   value={selectedDoctor}
@@ -198,11 +226,11 @@ const PatientDashboard = () => {
 
           {activeTab === "report" && (
             <div className="space-y-6">
-              <h1 className="text-2xl font-bold text-slate-800">Clinical Report — {selectedPatient}</h1>
+              <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Clinical Report — {selectedPatient}</h1>
 
               {sentReports.length > 0 && (
-                <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                  <h2 className="mb-3 font-bold text-slate-800">Reports from your dentist</h2>
+                <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                  <h2 className="mb-3 font-bold text-slate-800 dark:text-slate-100">Reports from your dentist</h2>
                   <div className="space-y-3">
                     {[...sentReports].reverse().map((r, i) => (
                       <div
@@ -231,35 +259,35 @@ const PatientDashboard = () => {
                 </div>
               )}
 
-              <div className="space-y-3 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                <h2 className="mb-1 font-bold text-slate-800">Current Chart Summary</h2>
-                <div className="flex justify-between border-b border-slate-100 pb-3">
-                  <span className="text-sm text-slate-500">Patient</span>
-                  <span className="text-sm font-semibold text-slate-800">{selectedPatient}</span>
+              <div className="space-y-3 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <h2 className="mb-1 font-bold text-slate-800 dark:text-slate-100">Current Chart Summary</h2>
+                <div className="flex justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Patient</span>
+                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{selectedPatient}</span>
                 </div>
-                <div className="flex justify-between border-b border-slate-100 pb-3">
-                  <span className="text-sm text-slate-500">Healthy teeth</span>
-                  <span className="text-sm font-semibold text-slate-800">{healthyCount}</span>
+                <div className="flex justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Healthy teeth</span>
+                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{healthyCount}</span>
                 </div>
-                <div className="flex justify-between border-b border-slate-100 pb-3">
-                  <span className="text-sm text-slate-500">Cavities</span>
-                  <span className="text-sm font-semibold text-slate-800">{cavityCount}</span>
+                <div className="flex justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Cavities</span>
+                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{cavityCount}</span>
                 </div>
-                <div className="flex justify-between border-b border-slate-100 pb-3">
-                  <span className="text-sm text-slate-500">Filled teeth</span>
-                  <span className="text-sm font-semibold text-slate-800">{filledCount}</span>
+                <div className="flex justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Filled teeth</span>
+                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{filledCount}</span>
                 </div>
-                <div className="flex justify-between border-b border-slate-100 pb-3">
-                  <span className="text-sm text-slate-500">Missing teeth</span>
-                  <span className="text-sm font-semibold text-slate-800">{missingCount}</span>
+                <div className="flex justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Missing teeth</span>
+                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{missingCount}</span>
                 </div>
-                <div className="flex justify-between border-b border-slate-100 pb-3">
-                  <span className="text-sm text-slate-500">Next appointment</span>
+                <div className="flex justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Next appointment</span>
                   <span className="text-sm font-semibold text-brand-700">{currentProfile.appointment}</span>
                 </div>
                 <div className="flex justify-between pt-1">
-                  <span className="text-sm text-slate-500">Dentist's advice</span>
-                  <span className="text-sm font-semibold text-slate-800">{currentProfile.advice || "—"}</span>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Dentist's advice</span>
+                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{currentProfile.advice || "—"}</span>
                 </div>
               </div>
             </div>

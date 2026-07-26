@@ -12,6 +12,7 @@ import {
   FaExchangeAlt,
   FaTimes,
 } from "react-icons/fa";
+import { IconSun, IconMoon } from "./icons";
 
 const patientMenu = [
   { name: "overview", label: "Overview", icon: <FaHome /> },
@@ -43,6 +44,8 @@ const Sidebar = ({
   switchLabel,
   open = false,
   onClose = () => {},
+  theme = "light",
+  toggleTheme = () => {},
 }) => {
   const menu = role === "Dentist" ? dentistMenu : patientMenu;
 
@@ -63,7 +66,7 @@ const Sidebar = ({
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 transform flex-col border-r border-slate-100 bg-white p-5 transition-transform duration-200 ease-out lg:static lg:z-auto lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 transform flex-col border-r border-slate-100 bg-white p-5 transition-transform duration-200 ease-out dark:border-slate-800 dark:bg-slate-900 lg:static lg:z-auto lg:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -74,22 +77,22 @@ const Sidebar = ({
               <FaTooth />
             </div>
             <div>
-              <h1 className="text-[15px] font-bold leading-tight text-slate-800">DentalClub</h1>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              <h1 className="text-[15px] font-bold leading-tight text-slate-800 dark:text-slate-100">DentalClub</h1>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                 {role === "Dentist" ? "Clinical portal" : "Patient portal"}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 lg:hidden"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 lg:hidden"
             aria-label="Close menu"
           >
             <FaTimes />
           </button>
         </div>
 
-        <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+        <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
           Navigation
         </p>
 
@@ -103,7 +106,7 @@ const Sidebar = ({
                 className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
                   active
                     ? "bg-brand-600 text-white shadow-sm"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                 }`}
               >
                 <span className="text-[15px]">{item.icon}</span>
@@ -113,24 +116,31 @@ const Sidebar = ({
           })}
         </nav>
 
-        <div className="space-y-1 border-t border-slate-100 pt-4">
-          <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50">
+        <div className="space-y-1 border-t border-slate-100 pt-4 dark:border-slate-800">
+          <button
+            onClick={toggleTheme}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
+          >
+            {theme === "dark" ? <IconSun className="h-4 w-4" /> : <IconMoon className="h-4 w-4" />}
+            {theme === "dark" ? "Light Mode" : "Dark Mode"}
+          </button>
+          <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800">
             <FaCog className="text-[15px]" /> Settings
           </button>
-          <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50">
+          <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800">
             <FaQuestionCircle className="text-[15px]" /> Help Center
           </button>
           {switchRoute && (
             <button
               onClick={() => navigate(switchRoute)}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-slate-800"
             >
               <FaExchangeAlt className="text-[15px]" /> {switchLabel || "Switch Account"}
             </button>
           )}
           <button
             onClick={() => navigate("/")}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-rose-500 transition-colors hover:bg-rose-50"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-rose-500 transition-colors hover:bg-rose-50 dark:hover:bg-rose-950/40"
           >
             <FaSignOutAlt className="text-[15px]" /> Logout
           </button>

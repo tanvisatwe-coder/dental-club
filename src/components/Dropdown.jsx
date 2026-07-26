@@ -56,14 +56,14 @@ const Dropdown = ({ label, value, options, onChange, colorClass = "bg-brand-600"
   return (
     <div className="relative" ref={ref}>
       <div className="flex items-center gap-2 text-sm text-slate-600">
-        {label && <span className="font-medium text-slate-500">{label}</span>}
+        {label && <span className="font-medium text-slate-500 dark:text-slate-400">{label}</span>}
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-controls={listId}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm transition-colors hover:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-500"
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm transition-colors hover:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-brand-600"
         >
           {selected?.initials && (
             <span
@@ -88,21 +88,21 @@ const Dropdown = ({ label, value, options, onChange, colorClass = "bg-brand-600"
       </div>
 
       {open && (
-        <div className="absolute z-30 mt-2 w-72 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-lg">
-          <div className="border-b border-slate-100 p-2">
+        <div className="absolute z-30 mt-2 w-72 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
+          <div className="border-b border-slate-100 p-2 dark:border-slate-700">
             <input
               ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Type to search..."
               aria-label="Search options"
-              className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
             />
           </div>
 
           <div id={listId} role="listbox" className="max-h-60 overflow-y-auto py-1">
             {filtered.length === 0 && (
-              <p className="px-3 py-4 text-center text-sm text-slate-400">No matches</p>
+              <p className="px-3 py-4 text-center text-sm text-slate-400 dark:text-slate-500">No matches</p>
             )}
             {filtered.map((opt) => (
               <button
@@ -115,8 +115,8 @@ const Dropdown = ({ label, value, options, onChange, colorClass = "bg-brand-600"
                   setOpen(false);
                   setQuery("");
                 }}
-                className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-slate-50 ${
-                  opt.value === value ? "bg-brand-50" : ""
+                className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-700 ${
+                  opt.value === value ? "bg-brand-50 dark:bg-brand-950/40" : ""
                 }`}
               >
                 {opt.initials && (
@@ -127,9 +127,9 @@ const Dropdown = ({ label, value, options, onChange, colorClass = "bg-brand-600"
                   </span>
                 )}
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium text-slate-800">{opt.label}</span>
+                  <span className="block truncate font-medium text-slate-800 dark:text-slate-100">{opt.label}</span>
                   {opt.sublabel && (
-                    <span className="block truncate text-xs text-slate-400">{opt.sublabel}</span>
+                    <span className="block truncate text-xs text-slate-400 dark:text-slate-500">{opt.sublabel}</span>
                   )}
                 </span>
                 {opt.value === value && (

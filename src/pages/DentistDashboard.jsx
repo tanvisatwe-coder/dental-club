@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import jsPDF from "jspdf";
 import Sidebar from "../components/Sidebar";
+import { useTheme } from "../hooks/useTheme";
 import Topbar from "../components/Topbar";
 import ToothChart from "../components/ToothChart";
 import ChatBox from "../components/ChatBox";
@@ -13,7 +14,7 @@ import Dropdown from "../components/Dropdown";
 import AddPatientModal from "../components/AddPatientModal";
 import doctorsData from "../data/doctorsData";
 import { STATUS, modeToStatus } from "../data/toothMeta";
-import { getUnreadCount, sendReportMessage, deleteThread } from "../data/chatStore";
+import { getUnreadCount, loadMessages, sendReportMessage, deleteThread } from "../data/chatStore";
 import { loadChart, saveChart, deleteChart } from "../data/chartStore";
 import { loadPatients, addPatient, updatePatient, deletePatient, patientsStorageKey } from "../data/patientsStore";
 import { sendReport, loadReports, deleteReport, deleteAllReports } from "../data/reportsStore";
@@ -40,19 +41,21 @@ const SECTION_LABELS = {
 };
 
 const Card = ({ className = "", children }) => (
-  <div className={`rounded-2xl border border-slate-100 bg-white p-5 shadow-sm ${className}`}>
+  <div className={`rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 ${className}`}>
     {children}
   </div>
 );
 
 const DentistDashboard = () => {
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loggedInDoctor, setLoggedInDoctor] = useState(doctorsData[0].name);
   const [auditLog, setAuditLog] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddPatient, setShowAddPatient] = useState(false);
+  const [bookingToConvert, setBookingToConvert] = useState(null);
   const [showEditPatient, setShowEditPatient] = useState(false);
 
   const [patientProfiles, setPatientProfiles] = useState(() => loadPatients());
@@ -73,6 +76,7 @@ const DentistDashboard = () => {
   const [selectedTooth, setSelectedTooth] = useState(null);
   const [selectedMode, setSelectedMode] = useState("cavity");
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationItems, setNotificationItems] = useState([]);
   const [sentReportsList, setSentReportsList] = useState(() => loadReports(selectedPatient));
   const [bookings, setBookings] = useState(() => loadBookings());
 
@@ -84,9 +88,17 @@ const DentistDashboard = () => {
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
-  const handleConfirmBooking = (id) => {
-    setBookings(updateBookingStatus(id, "Confirmed"));
-    toast.success("Appointment confirmed.");
+  const handleConfirmBooking = (booking) => {
+    if (patientProfiles[booking.name]) {
+      // Already an existing patient — just confirm, nothing else to do.
+      setBookings(updateBookingStatus(booking.id, "Confirmed"));
+      toast.success("Appointment confirmed.");
+      return;
+    }
+    // New patient — collect the couple of required details (age, gender,
+    // etc.) that the public booking form doesn't ask for, then add them.
+    setBookingToConvert(booking);
+    setShowAddPatient(true);
   };
 
   const handleDeleteBooking = (id) => {
@@ -105,6 +117,24 @@ const DentistDashboard = () => {
         0
       );
       setUnreadCount(total);
+
+      const items = allPatients
+        .map((name) => {
+          const messages = loadMessages(loggedInDoctor, name);
+          const unread = getUnreadCount(loggedInDoctor, name, "Dentist");
+          const last = messages[messages.length - 1];
+          return {
+            key: name,
+            name,
+            preview: last ? (last.type === "report" ? "Sent a dental report" : last.text) : "",
+            time: last ? last.time : "",
+            sortKey: last ? last.id : 0,
+            unread,
+          };
+        })
+        .filter((item) => item.unread > 0)
+        .sort((a, b) => b.sortKey - a.sortKey);
+      setNotificationItems(items);
     };
     recalc();
     window.addEventListener("storage", recalc);
@@ -233,6 +263,14 @@ const DentistDashboard = () => {
     const next = addPatient(newProfile.name, newProfile);
     setPatientProfiles(next);
     setShowAddPatient(false);
+
+    if (bookingToConvert) {
+      setBookings(updateBookingStatus(bookingToConvert.id, "Confirmed"));
+      setBookingToConvert(null);
+      toast.success(`${newProfile.name} confirmed and added to your patient list.`);
+      return;
+    }
+
     switchToPatient(newProfile.name);
     setActiveTab("dentalChart");
     toast.success(`${newProfile.name} added to your patient list.`);
@@ -274,7 +312,7 @@ const DentistDashboard = () => {
   );
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -284,6 +322,8 @@ const DentistDashboard = () => {
         switchLabel="Switch to Patient View"
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        theme={theme}
+        toggleTheme={toggleTheme}
       />
 
       <div className="flex min-h-screen flex-1 flex-col">
@@ -292,6 +332,11 @@ const DentistDashboard = () => {
           role="Dentist"
           userName={loggedInDoctor}
           notifications={unreadCount}
+          notificationItems={notificationItems}
+          onSelectNotification={(item) => {
+            switchToPatient(item.name);
+            setActiveTab("chats");
+          }}
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
           searchPlaceholder="Search patients..."
@@ -366,18 +411,18 @@ const DentistDashboard = () => {
               />
 
               <Card>
-                <h2 className="mb-4 flex items-center justify-between font-bold text-slate-800">
+                <h2 className="mb-4 flex items-center justify-between font-bold text-slate-800 dark:text-slate-100">
                   Patient Directory
                   <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">
                     {filteredPatients.length} Patient{filteredPatients.length !== 1 ? "s" : ""}
                   </span>
                 </h2>
-                <p className="-mt-3 mb-4 text-sm text-slate-500">Select a patient to begin clinical charting</p>
+                <p className="-mt-3 mb-4 text-sm text-slate-500 dark:text-slate-400">Select a patient to begin clinical charting</p>
 
                 <div className="space-y-3">
                   {allPatients.length === 0 && (
                     <div className="flex flex-col items-center gap-3 py-10 text-center">
-                      <p className="text-sm text-slate-500">No patients yet — add your first patient to get started.</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">No patients yet — add your first patient to get started.</p>
                       <button
                         onClick={() => setShowAddPatient(true)}
                         className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700"
@@ -387,7 +432,7 @@ const DentistDashboard = () => {
                     </div>
                   )}
                   {allPatients.length > 0 && filteredPatients.length === 0 && (
-                    <p className="py-6 text-center text-sm text-slate-500">No patients match "{searchTerm}"</p>
+                    <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">No patients match "{searchTerm}"</p>
                   )}
                   {filteredPatients.map((name) => {
                     const p = patientProfiles[name];
@@ -395,15 +440,15 @@ const DentistDashboard = () => {
                     return (
                       <div
                         key={name}
-                        className="flex w-full flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 p-4 transition-colors hover:bg-slate-50"
+                        className="flex w-full flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 p-4 dark:border-slate-800 transition-colors hover:bg-slate-50"
                       >
                         <div className="flex items-center gap-3">
                           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-bold text-white">
                             {initials}
                           </div>
                           <div>
-                            <p className="text-sm font-semibold text-slate-800">{name}</p>
-                            <p className="text-xs text-slate-400">
+                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{name}</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500">
                               Age: {p.age} · Last visit: {p.appointment?.split(" - ")[0]}
                             </p>
                           </div>
@@ -446,12 +491,12 @@ const DentistDashboard = () => {
           {activeTab === "patients" && (
             <Card>
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="font-bold text-slate-800">All Patients</h2>
-                <span className="text-xs text-slate-400">{filteredPatients.length} shown</span>
+                <h2 className="font-bold text-slate-800 dark:text-slate-100">All Patients</h2>
+                <span className="text-xs text-slate-400 dark:text-slate-500">{filteredPatients.length} shown</span>
               </div>
               {allPatients.length === 0 && (
                 <div className="flex flex-col items-center gap-3 py-10 text-center">
-                  <p className="text-sm text-slate-500">No patients yet — add your first patient to get started.</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">No patients yet — add your first patient to get started.</p>
                   <button
                     onClick={() => setShowAddPatient(true)}
                     className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700"
@@ -461,16 +506,16 @@ const DentistDashboard = () => {
                 </div>
               )}
               {allPatients.length > 0 && filteredPatients.length === 0 && (
-                <p className="py-6 text-center text-sm text-slate-500">No patients match "{searchTerm}"</p>
+                <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">No patients match "{searchTerm}"</p>
               )}
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredPatients.map((name) => {
                   const p = patientProfiles[name];
                   return (
                     <div key={name} className="flex flex-wrap items-center justify-between gap-3 py-3">
                       <div>
-                        <p className="text-sm font-semibold text-slate-800">{name}</p>
-                        <p className="text-xs text-slate-400">
+                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{name}</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500">
                           {p.age} yrs · {p.gender} · {p.bloodGroup}
                         </p>
                       </div>
@@ -503,22 +548,22 @@ const DentistDashboard = () => {
             <div className="space-y-6">
               <Card>
                 <div className="mb-4 flex items-center justify-between">
-                  <h2 className="font-bold text-slate-800">Appointment Requests</h2>
+                  <h2 className="font-bold text-slate-800 dark:text-slate-100">Appointment Requests</h2>
                   <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">
                     {bookings.length} request{bookings.length !== 1 ? "s" : ""}
                   </span>
                 </div>
                 {bookings.length === 0 ? (
-                  <p className="py-6 text-center text-sm text-slate-500">
+                  <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
                     No booking requests yet — they'll show up here when patients book from the site.
                   </p>
                 ) : (
-                  <div className="divide-y divide-slate-100">
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
                     {[...bookings].reverse().map((b) => (
                       <div key={b.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                         <div>
-                          <p className="text-sm font-semibold text-slate-800">{b.name}</p>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{b.name}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
                             {b.date} at {b.time} · {b.reason} · {b.phone}
                           </p>
                         </div>
@@ -534,7 +579,7 @@ const DentistDashboard = () => {
                           </span>
                           {b.status !== "Confirmed" && (
                             <button
-                              onClick={() => handleConfirmBooking(b.id)}
+                              onClick={() => handleConfirmBooking(b)}
                               className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-700"
                             >
                               Confirm
@@ -554,19 +599,19 @@ const DentistDashboard = () => {
               </Card>
 
               <Card>
-                <h2 className="mb-4 font-bold text-slate-800">Scheduled Patient Visits</h2>
+                <h2 className="mb-4 font-bold text-slate-800 dark:text-slate-100">Scheduled Patient Visits</h2>
                 {allPatients.length === 0 ? (
-                  <p className="py-6 text-center text-sm text-slate-500">
+                  <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
                     No appointments yet — they'll show up here once you add patients.
                   </p>
                 ) : (
-                  <div className="divide-y divide-slate-100">
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
                     {allPatients.map((name) => {
                       const p = patientProfiles[name];
                       return (
                         <div key={name} className="flex items-center justify-between gap-4 py-3">
-                          <p className="text-sm font-semibold text-slate-800">{name}</p>
-                          <span className="text-xs font-medium text-slate-500">{p.appointment}</span>
+                          <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{name}</p>
+                          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{p.appointment}</span>
                         </div>
                       );
                     })}
@@ -578,7 +623,7 @@ const DentistDashboard = () => {
 
           {activeTab === "chats" && !selectedPatient && (
             <Card>
-              <p className="py-6 text-center text-sm text-slate-500">
+              <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
                 Add a patient first to start a conversation.
               </p>
             </Card>
@@ -596,7 +641,7 @@ const DentistDashboard = () => {
           {activeTab === "dentalChart" && !selectedPatient && (
             <Card>
               <div className="flex flex-col items-center gap-3 py-10 text-center">
-                <p className="text-sm text-slate-500">No patient selected — add a patient to start charting.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">No patient selected — add a patient to start charting.</p>
                 <button
                   onClick={() => setShowAddPatient(true)}
                   className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700"
@@ -611,8 +656,8 @@ const DentistDashboard = () => {
             <div className="space-y-6">
               <Card className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-bold text-slate-800">Dental Chart — {selectedPatient}</h2>
-                  <p className="text-sm text-slate-500">Click a tooth, then pick a condition to log it</p>
+                  <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Dental Chart — {selectedPatient}</h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Click a tooth, then pick a condition to log it</p>
                 </div>
 
                 <div className="flex flex-wrap rounded-xl bg-slate-100 p-1">
@@ -652,16 +697,16 @@ const DentistDashboard = () => {
                 <AuditLog entries={auditLog} />
 
                 <Card>
-                  <h3 className="mb-3 flex items-center gap-2 font-bold text-slate-800">
+                  <h3 className="mb-3 flex items-center gap-2 font-bold text-slate-800 dark:text-slate-100">
                     <IconDroplet className="h-4 w-4 text-rose-500" /> Bleeding on probing
                   </h3>
                   {selectedTooth ? (
                     <>
-                      <p className="mb-2 text-xs text-slate-400">Tooth {selectedTooth}</p>
+                      <p className="mb-2 text-xs text-slate-400 dark:text-slate-500">Tooth {selectedTooth}</p>
                       <select
                         value={bleedingMap[selectedTooth] || 0}
                         onChange={(e) => handleBleedingChange(Number(e.target.value))}
-                        className="w-full rounded-lg border border-slate-200 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        className="w-full rounded-lg border border-slate-200 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                       >
                         {[0, 1, 2, 3, 4, 5].map((v) => (
                           <option key={v} value={v}>{v === 0 ? "0 — none" : v}</option>
@@ -699,7 +744,7 @@ const DentistDashboard = () => {
 
           {activeTab === "reports" && !selectedPatient && (
             <Card>
-              <p className="py-6 text-center text-sm text-slate-500">
+              <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
                 No patient selected — add a patient to generate reports.
               </p>
             </Card>
@@ -709,18 +754,18 @@ const DentistDashboard = () => {
             <div className="space-y-6">
               <Card>
                 <div className="flex items-center justify-between">
-                  <h2 className="font-bold text-slate-800">Clinical Report</h2>
+                  <h2 className="font-bold text-slate-800 dark:text-slate-100">Clinical Report</h2>
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${RISK_STYLES[risk]}`}>
                     {risk} risk
                   </span>
                 </div>
                 <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <div><dt className="text-xs text-slate-500">Healthy</dt><dd className="text-lg font-bold text-slate-800">{healthyCount}</dd></div>
-                  <div><dt className="text-xs text-slate-500">Cavities</dt><dd className="text-lg font-bold text-slate-800">{cavityCount}</dd></div>
-                  <div><dt className="text-xs text-slate-500">Filled</dt><dd className="text-lg font-bold text-slate-800">{filledCount}</dd></div>
-                  <div><dt className="text-xs text-slate-500">Missing</dt><dd className="text-lg font-bold text-slate-800">{missingCount}</dd></div>
+                  <div><dt className="text-xs text-slate-500 dark:text-slate-400">Healthy</dt><dd className="text-lg font-bold text-slate-800 dark:text-slate-100">{healthyCount}</dd></div>
+                  <div><dt className="text-xs text-slate-500 dark:text-slate-400">Cavities</dt><dd className="text-lg font-bold text-slate-800 dark:text-slate-100">{cavityCount}</dd></div>
+                  <div><dt className="text-xs text-slate-500 dark:text-slate-400">Filled</dt><dd className="text-lg font-bold text-slate-800 dark:text-slate-100">{filledCount}</dd></div>
+                  <div><dt className="text-xs text-slate-500 dark:text-slate-400">Missing</dt><dd className="text-lg font-bold text-slate-800 dark:text-slate-100">{missingCount}</dd></div>
                 </dl>
-                <p className="mt-4 text-sm text-slate-500">Appointment: <span className="font-medium text-slate-700">{profile.appointment}</span></p>
+                <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">Appointment: <span className="font-medium text-slate-700">{profile.appointment}</span></p>
 
                 <div className="mt-5 flex flex-wrap gap-3">
                   <button
@@ -740,14 +785,14 @@ const DentistDashboard = () => {
 
               {sentReportsList.length > 0 && (
                 <Card>
-                  <h3 className="mb-4 font-bold text-slate-800">Sent Reports — {selectedPatient}</h3>
+                  <h3 className="mb-4 font-bold text-slate-800 dark:text-slate-100">Sent Reports — {selectedPatient}</h3>
                   <div className="space-y-3">
                     {[...sentReportsList].reverse().map((r, revIdx) => {
                       const realIndex = sentReportsList.length - 1 - revIdx;
                       return (
-                        <div key={realIndex} className="flex items-start justify-between gap-3 rounded-xl border border-slate-100 p-4">
+                        <div key={realIndex} className="flex items-start justify-between gap-3 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
                           <div>
-                            <p className="text-xs font-semibold text-slate-500">
+                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                               {new Date(r.sentAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })} · {r.sentBy}
                             </p>
                             <p className="mt-1 text-xs text-slate-600">
@@ -773,9 +818,23 @@ const DentistDashboard = () => {
 
       <AddPatientModal
         open={showAddPatient}
-        onClose={() => setShowAddPatient(false)}
+        onClose={() => {
+          setShowAddPatient(false);
+          setBookingToConvert(null);
+        }}
         onSubmit={handleAddPatient}
         mode="add"
+        title={bookingToConvert ? `Confirm ${bookingToConvert.name} as a Patient` : null}
+        initialData={
+          bookingToConvert
+            ? {
+                name: bookingToConvert.name,
+                phone: bookingToConvert.phone,
+                appointment: `${bookingToConvert.date} at ${bookingToConvert.time}`,
+                note: bookingToConvert.reason,
+              }
+            : null
+        }
       />
 
       <AddPatientModal

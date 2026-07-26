@@ -3,7 +3,7 @@ import { STATUS, STATUS_ORDER, BLEEDING } from "../data/toothMeta";
 
 const Legend = ({ showBleeding = true }) => {
   return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3 text-xs text-slate-600">
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-300">
       <div className="flex items-center gap-4">
         {STATUS_ORDER.map((key) => {
           const s = STATUS[key];
@@ -20,12 +20,12 @@ const Legend = ({ showBleeding = true }) => {
       </div>
 
       {showBleeding && (
-        <div className="flex items-center gap-2 border-l border-slate-200 pl-4">
-          <span className="text-slate-500">Bleeding:</span>
+        <div className="flex items-center gap-2 border-l border-slate-200 pl-4 dark:border-slate-700">
+          <span className="text-slate-500 dark:text-slate-400">Bleeding:</span>
           {[1, 2, 3, 4, 5].map((lvl) => (
             <span
               key={lvl}
-              className="h-2.5 w-2.5 rounded-full ring-1 ring-white"
+              className="h-2.5 w-2.5 rounded-full ring-1 ring-white dark:ring-slate-800"
               style={{ backgroundColor: BLEEDING[lvl].color }}
               title={BLEEDING[lvl].label}
             />
