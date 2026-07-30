@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { toast } from "react-toastify";
+import { notify } from "../utils/notify";
 import { IconMessage } from "./icons";
 import {
   storageKeyFor,
@@ -7,6 +7,7 @@ import {
   saveMessages,
   markThreadRead,
   sendReportMessage,
+  sendReminderMessage,
   deleteMessage,
 } from "../data/chatStore";
 import { loadChart } from "../data/chartStore";
@@ -65,11 +66,17 @@ const ChatBox = ({
 
     const next = [
       ...messages,
-      {
-        id: Date.now(),
-        sender: role,
-        text,
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+     {
+  id: Date.now(),
+  type: "reminder",
+  sender: "Dentist",
+  text: body,
+  date,
+  reminderTime: time, // scheduled reminder time
+  time: new Date().toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  }), // chat message time
       },
     ];
 
@@ -103,9 +110,12 @@ const ChatBox = ({
     };
 
     sendReport(patientName, snapshot);
+    
+    
+    
     const next = sendReportMessage(doctorName, patientName, role, snapshot);
     setMessages(next);
-    toast.success(`Report sent to ${patientName}.`);
+    notify.success(`Report sent to ${patientName}.`);
   };
 
   const handleDeleteMessage = (messageId) => {
@@ -119,6 +129,25 @@ const ChatBox = ({
       handleSend();
     }
   };
+
+const handleSendReminder = () => {
+  const followUpDate = patientProfile.appointment;
+
+  if (!followUpDate) {
+    notify.error("No appointment date available.");
+    return;
+  }
+
+  const next = sendReminderMessage(
+    doctorName,
+    patientName,
+    followUpDate
+  );
+
+  setMessages(next);
+
+  notify.success(`Reminder sent to ${patientName}.`);
+};
 
   return (
     <div className="flex h-[70vh] flex-col rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -184,6 +213,41 @@ const ChatBox = ({
               </div>
             );
           }
+
+         if (m.type === "reminder") {
+  return (
+    <div
+      key={m.id}
+      className={`group flex items-start gap-1.5 ${
+        isMine ? "justify-end" : "justify-start"
+      }`}
+    >
+      {isMine && (
+        <button
+          onClick={() => handleDeleteMessage(m.id)}
+          aria-label="Delete message"
+          className="mt-2 shrink-0 rounded p-1 text-slate-300 opacity-0 transition-opacity hover:bg-slate-100 hover:text-rose-500 group-hover:opacity-100"
+        >
+          🗑️
+        </button>
+      )}
+
+      <div className="max-w-[80%] rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm">
+        <p className="font-semibold text-yellow-700">
+          🔔 Follow-up Reminder
+        </p>
+
+        <p className="mt-2 whitespace-pre-line text-slate-700">
+          {m.text}
+        </p>
+
+        <p className="mt-2 text-[10px] text-slate-500">
+          {m.sender} · {m.time}
+        </p>
+      </div>
+    </div>
+  );
+}
 
           return (
             <div key={m.id} className={`group flex items-start gap-1.5 ${isMine ? "justify-end" : "justify-start"}`}>

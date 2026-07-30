@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
+import { notify } from "../utils/notify";
 import Sidebar from "../components/Sidebar";
 import { useTheme } from "../hooks/useTheme";
+import { useDensity } from "../hooks/useDensity";
 import Topbar from "../components/Topbar";
 import ToothChart from "../components/ToothChart";
 import ChatBox from "../components/ChatBox";
@@ -23,6 +24,7 @@ const SECTION_LABELS = {
 const PatientDashboard = () => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const { density, toggleDensity } = useDensity();
   const [activeTab, setActiveTab] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState(doctorsData[0].name);
@@ -116,7 +118,7 @@ const PatientDashboard = () => {
     const handleStorage = (e) => {
       if (e.key === reportsKeyFor(selectedPatient)) {
         setSentReports(loadReports(selectedPatient));
-        toast.success("Your dentist sent you a new report!");
+        notify.success("Your dentist sent you a new report!");
       }
     };
     window.addEventListener("storage", handleStorage);
@@ -136,6 +138,10 @@ const PatientDashboard = () => {
         onClose={() => setSidebarOpen(false)}
         theme={theme}
         toggleTheme={toggleTheme}
+        density={density}
+        toggleDensity={toggleDensity}
+        accountName={selectedPatient}
+        accountSubLabel="Patient"
       />
 
       <div className="flex min-h-screen flex-1 flex-col">
@@ -152,7 +158,7 @@ const PatientDashboard = () => {
           onMenuClick={() => setSidebarOpen(true)}
         />
 
-        <main className="flex-1 space-y-6 p-6">
+        <main className="flex-1 space-y-6 p-6 compact:space-y-3 compact:p-4">
           {activeTab === "overview" && allPatients.length > 0 && (
             <div className="space-y-6">
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">

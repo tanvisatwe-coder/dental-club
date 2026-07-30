@@ -11,7 +11,7 @@ const TONES = {
 
 const StatCard = ({ icon: Icon, label, value, tone = "slate", hint }) => {
   return (
-    <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 compact:gap-2 compact:p-3">
       {Icon && (
         <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${TONES[tone]}`}>
           <Icon className="h-5 w-5" />

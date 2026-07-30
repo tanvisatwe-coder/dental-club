@@ -8,6 +8,11 @@ export const createDefaultChart = () =>
     return acc;
   }, {});
 
+  export const resetChart = (patient) => {
+  deleteChart(patient);           // clears the saved chart
+  return { teeth: {}, bleeding: {} };
+};
+
 // The demo data your app used to hardcode per-patient, kept here so first
 // load still looks populated instead of a blank all-healthy chart.
 const DEMO_TEETH = {

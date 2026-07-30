@@ -31,6 +31,7 @@ const ToothChart = ({
   interactive = true,
   showLegend = true,
   patientAge = null,
+   statusColors = {}
 }) => {
   const isPediatric = patientAge != null && patientAge <= PEDIATRIC_AGE_CUTOFF;
 
@@ -75,6 +76,14 @@ const ToothChart = ({
               isSelected={selectedTooth === num}
               onClick={() => onToothClick(num)}
               interactive={interactive}
+              statusColor={
+    {
+      Planned: "#3b82f6",
+      "In Progress": "#f97316",
+      Completed: "#22c55e",
+      Cancelled: "#ef4444",
+    }[statusColors[String(num)]]
+  }
             />
           </div>
         );

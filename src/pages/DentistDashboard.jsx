@@ -1,21 +1,25 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
+import { notify } from "../utils/notify";
 import jsPDF from "jspdf";
 import Sidebar from "../components/Sidebar";
 import { useTheme } from "../hooks/useTheme";
+import { useDensity } from "../hooks/useDensity";
 import Topbar from "../components/Topbar";
 import ToothChart from "../components/ToothChart";
+import TreatmentPlan from "../components/TreatmentPlan";
 import ChatBox from "../components/ChatBox";
 import StatCard from "../components/StatCard";
 import StatRow from "../components/StatRow";
 import AuditLog from "../components/AuditLog";
 import Dropdown from "../components/Dropdown";
 import AddPatientModal from "../components/AddPatientModal";
+import { loadChart, saveChart, deleteChart, resetChart } from "../data/chartStore";
+import { sendReminderMessage } from "../data/chatStore";
+
 import doctorsData from "../data/doctorsData";
 import { STATUS, modeToStatus } from "../data/toothMeta";
 import { getUnreadCount, loadMessages, sendReportMessage, deleteThread } from "../data/chatStore";
-import { loadChart, saveChart, deleteChart } from "../data/chartStore";
 import { loadPatients, addPatient, updatePatient, deletePatient, patientsStorageKey } from "../data/patientsStore";
 import { sendReport, loadReports, deleteReport, deleteAllReports } from "../data/reportsStore";
 import { loadBookings, updateBookingStatus, deleteBooking, subscribeToBookings } from "../data/appointmentsStore";
@@ -36,12 +40,14 @@ const SECTION_LABELS = {
   patients: "Patient Profiles",
   appointments: "Appointments",
   dentalChart: "Charting Center",
+  treatment: "Treatment Plan",   // NEW
   reports: "Reports",
   chats: "Secure Chat",
 };
 
+
 const Card = ({ className = "", children }) => (
-  <div className={`rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 ${className}`}>
+  <div className={`rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 compact:p-3 ${className}`}>
     {children}
   </div>
 );
@@ -49,6 +55,7 @@ const Card = ({ className = "", children }) => (
 const DentistDashboard = () => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const { density, toggleDensity } = useDensity();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loggedInDoctor, setLoggedInDoctor] = useState(doctorsData[0].name);
@@ -71,14 +78,18 @@ const DentistDashboard = () => {
   }, []);
 
   const initialChart = loadChart(selectedPatient || allPatients[0]);
-  const [currentTeethStates, setCurrentTeethStates] = useState(initialChart.teeth);
-  const [bleedingMap, setBleedingMap] = useState(initialChart.bleeding);
-  const [selectedTooth, setSelectedTooth] = useState(null);
-  const [selectedMode, setSelectedMode] = useState("cavity");
+ const [currentTeethStates, setCurrentTeethStates] = useState(initialChart.teeth);
+const [bleedingMap, setBleedingMap] = useState(initialChart.bleeding);
+
+const [selectedTooth, setSelectedTooth] = useState(null);
+const [toothStatuses, setToothStatuses] = useState({});
+
+const [selectedMode, setSelectedMode] = useState("cavity");
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationItems, setNotificationItems] = useState([]);
   const [sentReportsList, setSentReportsList] = useState(() => loadReports(selectedPatient));
   const [bookings, setBookings] = useState([]);
+  
 
   // Load bookings from Supabase, then subscribe to live changes so a
   // booking made on ANY device (phone, another computer, etc.) shows up
@@ -101,7 +112,7 @@ const DentistDashboard = () => {
     if (patientProfiles[booking.name]) {
       // Already an existing patient — just confirm, nothing else to do.
       await updateBookingStatus(booking.id, "Confirmed");
-      toast.success("Appointment confirmed.");
+      notify.success("Appointment confirmed.");
       return;
     }
     // New patient — collect the couple of required details (age, gender,
@@ -110,10 +121,19 @@ const DentistDashboard = () => {
     setShowAddPatient(true);
   };
 
-  const handleDeleteBooking = async (id) => {
-    await deleteBooking(id);
-    toast.success("Appointment request removed.");
+   const handleDeleteBooking = async (id) => {
+    if (!window.confirm("Delete this appointment request?")) return;
+    const prev = bookings;
+    setBookings((list) => list.filter((b) => b.id !== id)); // instant UI update
+    try {
+      await deleteBooking(id);
+      notify.success("Appointment request removed.");
+    } catch (err) {
+      setBookings(prev); // put it back if the server rejected it
+      notify.error(`Couldn't delete: ${err.message || "unknown error"}`);
+    }
   };
+
 
   useEffect(() => {
     setSentReportsList(loadReports(selectedPatient));
@@ -236,13 +256,51 @@ const DentistDashboard = () => {
     doc.text("Generated by DentalClub Management System", 20, 285);
 
     doc.save(`${selectedPatient}_report.pdf`);
-    toast.success("PDF report downloaded!");
+    notify.success("PDF report downloaded!");
   };
 
-  const handleSaveChanges = () => {
-    saveChart(selectedPatient, currentTeethStates, bleedingMap);
-    toast.success("Changes saved successfully! The patient can now see this update.");
+  const handleSaveChanges = async () => {
+    try {
+      await saveChart(selectedPatient, currentTeethStates, bleedingMap);
+      // re-read so what's on screen is exactly what got stored
+      const saved = loadChart(selectedPatient);
+      setCurrentTeethStates(saved.teeth);
+      setBleedingMap(saved.bleeding);
+      notify.success("Changes saved successfully! The patient can now see this update.");
+    } catch (err) {
+      console.error(err);
+      notify.error(`Save failed: ${err.message || "unknown error"}`);
+    }
   };
+
+  const handleResetChart = () => {
+    if (!window.confirm(`Reset ${selectedPatient}'s chart? All tooth conditions and bleeding scores will be cleared.`)) {
+      return;
+    }
+    const cleared = resetChart(selectedPatient);
+    setCurrentTeethStates(cleared.teeth);
+    setBleedingMap(cleared.bleeding);
+    setSelectedTooth(null);
+    setAuditLog([]);
+    notify.success("Chart reset to a clean slate.");
+  };
+
+  const handleSendReminder = () => {
+  const reminder = {
+    appointment: profile.appointment,
+    message: `Reminder: Your dental appointment is scheduled for ${profile.appointment}`,
+    sentBy: loggedInDoctor,
+  };
+
+  const next = sendReminderMessage(
+    loggedInDoctor,
+    selectedPatient,
+    "Dentist",
+    reminder
+  );
+
+  notify.success(`Reminder sent to ${selectedPatient}.`);
+};
 
   const handleSendReportToPatient = () => {
     const snapshot = {
@@ -259,13 +317,13 @@ const DentistDashboard = () => {
     sendReport(selectedPatient, snapshot);
     sendReportMessage(loggedInDoctor, selectedPatient, "Dentist", snapshot);
     setSentReportsList(loadReports(selectedPatient));
-    toast.success(`Report sent to ${selectedPatient} — they'll see it in Secure Chat and Reports.`);
+    notify.success(`Report sent to ${selectedPatient} — they'll see it in Secure Chat and Reports.`);
   };
 
   const handleDeleteSentReport = (index) => {
     const next = deleteReport(selectedPatient, index);
     setSentReportsList(next);
-    toast.success("Report deleted.");
+    notify.success("Report deleted.");
   };
 
   const handleAddPatient = async (newProfile) => {
@@ -276,13 +334,13 @@ const DentistDashboard = () => {
     if (bookingToConvert) {
       await updateBookingStatus(bookingToConvert.id, "Confirmed");
       setBookingToConvert(null);
-      toast.success(`${newProfile.name} confirmed and added to your patient list.`);
+      notify.success(`${newProfile.name} confirmed and added to your patient list.`);
       return;
     }
 
     switchToPatient(newProfile.name);
     setActiveTab("dentalChart");
-    toast.success(`${newProfile.name} added to your patient list.`);
+    notify.success(`${newProfile.name} added to your patient list.`);
   };
 
   const handleEditPatient = (updatedProfile) => {
@@ -290,7 +348,7 @@ const DentistDashboard = () => {
     const next = updatePatient(selectedPatient, fields);
     setPatientProfiles(next);
     setShowEditPatient(false);
-    toast.success(`${selectedPatient}'s profile updated.`);
+    notify.success(`${selectedPatient}'s profile updated.`);
   };
 
   const handleDeletePatient = (name) => {
@@ -298,7 +356,8 @@ const DentistDashboard = () => {
       return;
     }
     const next = deletePatient(name);
-    deleteChart(name);
+       deleteChart(name);
+    deletePlan(name);   // NEW
     deleteAllReports(name);
     doctorsData.forEach((doc) => deleteThread(doc.name, name));
     setPatientProfiles(next);
@@ -313,7 +372,7 @@ const DentistDashboard = () => {
         setBleedingMap({});
       }
     }
-    toast.success(`${name}'s profile deleted.`);
+    notify.success(`${name}'s profile deleted.`);
   };
 
   const filteredPatients = allPatients.filter((name) =>
@@ -333,6 +392,10 @@ const DentistDashboard = () => {
         onClose={() => setSidebarOpen(false)}
         theme={theme}
         toggleTheme={toggleTheme}
+        density={density}
+        toggleDensity={toggleDensity}
+        accountName={loggedInDoctor}
+        accountSubLabel="Dentist"
       />
 
       <div className="flex min-h-screen flex-1 flex-col">
@@ -352,7 +415,7 @@ const DentistDashboard = () => {
           onMenuClick={() => setSidebarOpen(true)}
         />
 
-        <main className="flex-1 space-y-6 p-6">
+        <main className="flex-1 space-y-6 p-6 compact:space-y-3 compact:p-4">
           {/* Patient + doctor identity selector row */}
           <Card className="flex flex-wrap items-center justify-between gap-4 !p-4">
             <div className="flex flex-wrap items-center gap-4">
@@ -694,12 +757,17 @@ const DentistDashboard = () => {
 
               <Card>
                 <ToothChart
-                  teethStates={currentTeethStates}
-                  onToothClick={handleToothClick}
-                  selectedTooth={selectedTooth}
-                  bleedingMap={bleedingMap}
-                  patientAge={profile.age}
-                />
+  teethStates={currentTeethStates}
+  onToothClick={handleToothClick}
+  onToothSelect={(num)=>{
+    setSelectedTooth(num);
+    setActiveTab("treatment");
+  }}
+  selectedTooth={selectedTooth}
+  bleedingMap={bleedingMap}
+  patientAge={profile.age}
+  statusColors={toothStatuses}
+/>
               </Card>
 
               <div className="grid gap-6 lg:grid-cols-3">
@@ -741,15 +809,49 @@ const DentistDashboard = () => {
                     Send Report to Patient
                   </button>
                   <button
+  onClick={handleSendReminder}
+  className="flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600"
+>
+  Send Appointment Reminder
+</button>
+                  <button
                     onClick={generateReport}
                     className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
                   >
                     <IconDownload className="h-4 w-4" /> Download PDF
                   </button>
+                  <button
+  onClick={handleResetChart}
+  className="flex items-center justify-center gap-2 rounded-xl border border-rose-200 px-6 py-2.5 text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-50"
+>
+  ⟲ Reset Chart
+</button>
                 </div>
               </div>
             </div>
           )}
+
+{/* Treatment Plan */}
+{activeTab === "treatment" && !selectedPatient && (
+  <Card>
+    <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+      No patient selected — add a patient to build a treatment plan.
+    </p>
+  </Card>
+)}
+
+{activeTab === "treatment" && selectedPatient && (
+  <TreatmentPlan
+    patientId={selectedPatient}
+    patientName={selectedPatient}
+    selectedTooth={selectedTooth}
+    chartState={{
+      teeth: currentTeethStates,
+      bleeding: bleedingMap,
+    }}
+    onToothStatusChange={setToothStatuses}
+  />
+)}
 
           {activeTab === "reports" && !selectedPatient && (
             <Card>
@@ -783,6 +885,12 @@ const DentistDashboard = () => {
                   >
                     Send Report to Patient
                   </button>
+                  <button
+  onClick={handleSendReminder}
+  className="flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-600"
+>
+  🔔 Send Reminder
+</button>
                   <button
                     onClick={generateReport}
                     className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"

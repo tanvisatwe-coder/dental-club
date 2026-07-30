@@ -4,6 +4,7 @@
 /* Makes `dark:` utilities respond to a `.dark` class on <html> (toggled by
    the user) instead of only the OS-level prefers-color-scheme setting. */
 @custom-variant dark (&:where(.dark, .dark *));
+@custom-variant compact (&:where(.compact, .compact *));
 
 @theme {
   --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;

@@ -58,14 +58,48 @@ export const sendReportMessage = (doctorName, patientName, sender, reportSnapsho
   const messages = loadMessages(doctorName, patientName);
   const next = [
     ...messages,
+   {
+  id: Date.now(),
+  type: "reminder",
+  sender: "Dentist",
+  text: body,
+  date,
+  time: new Date().toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  }),
+}
+  ];
+  saveMessages(doctorName, patientName, next);
+  return next;
+};
+
+export const sendReminderMessage = (doctorName, patientName, payload) => {
+  // accepts either a plain date string OR { date, time, text }
+  const data = typeof payload === "string" ? { date: payload } : (payload || {});
+  const { date = "", time = "", text = "" } = data;
+
+  const when = [date, time].filter(Boolean).join(" at ");
+  const body = text
+    ? `${text}${when ? `\n\n📅 ${when}` : ""}`
+    : `This is a reminder for your follow-up appointment.${when ? `\n\n📅 ${when}` : ""}`;
+
+  const messages = loadMessages(doctorName, patientName);
+
+  const next = [
+    ...messages,
     {
       id: Date.now(),
-      sender,
-      type: "report",
-      report: reportSnapshot,
+      type: "reminder",
+      sender: "Dentist",
+      text: body,
+      date,
+      time,
+      time_label: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     },
   ];
+
   saveMessages(doctorName, patientName, next);
   return next;
 };

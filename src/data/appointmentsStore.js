@@ -35,8 +35,13 @@ export const updateBookingStatus = async (id, status) => {
 
 export const deleteBooking = async (id) => {
   const { error } = await supabase.from(TABLE).delete().eq("id", id);
-  if (error) console.error("Failed to delete booking:", error.message);
+  if (error) {
+    console.error("deleteBooking failed:", error);
+    throw error;          // <- so the UI can show the real reason
+  }
+  return true;
 };
+
 
 /**
  * Subscribes to live changes on the appointments table — fires `onChange`
