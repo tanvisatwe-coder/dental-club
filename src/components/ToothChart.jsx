@@ -26,6 +26,7 @@ const PEDIATRIC_AGE_CUTOFF = 12;
 const ToothChart = ({
   teethStates,
   onToothClick,
+  onToothDoubleClick,
   selectedTooth,
   bleedingMap,
   interactive = true,
@@ -109,6 +110,7 @@ const ToothChart = ({
             <span>{QUADRANTS.upper[1].label}</span>
           </div>
           {renderRow(upper, "upper")}
+          
 
           <div className="my-5 flex items-center gap-3">
             <div className="h-px flex-1 bg-slate-100" />
